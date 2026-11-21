@@ -8,7 +8,7 @@ from aiogram.enums import ChatType
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
-from app.bot.copy import ERRORS, LABELS, MOODS, PROMPTS
+from app.bot.copy import ERRORS, LABELS, MOODS, PROMPTS, WEATHER
 from app.bot.handlers.start import send_home
 from app.bot.keyboards import action, keyboard, web_link
 from app.bot.messages import reply, send_optional_sticker
@@ -44,7 +44,7 @@ async def cancel_command(message: Message, diary: Diary, settings: Settings) -> 
         await send_home(message, message.from_user.id, diary, settings, PROMPTS["no_draft"])
 
 
-@router.callback_query(F.data.startswith(("draft:", "step:", "profile:", "date:", "mood:", "favorite:", "remove:", "clear:", "delete:")))
+@router.callback_query(F.data.startswith(("draft:", "step:", "profile:", "date:", "weather:", "caption:", "mood:", "favorite:", "remove:", "clear:", "delete:")))
 async def draft_action(callback: CallbackQuery, diary: Diary, settings: Settings) -> None:
     await callback.answer()
     operation, value = callback.data.split(":", 1)
@@ -59,7 +59,7 @@ async def draft_action(callback: CallbackQuery, diary: Diary, settings: Settings
             buttons = lambda *keys: tuple(action(key, f"step:{key}") for key in keys)
             await reply(message, PROMPTS["details"], keyboard(
                 buttons("date", "time", "place"), buttons("weather", "mood"), buttons("key_detail", "favorite"),
-                buttons("cue") if day.track.get("kind") == "file" else (), (action("back", "draft:back"),),
+                buttons("cue") if day.track.get("kind") == "file" else (), (action("skip", "draft:back"), action("back_details", "draft:back")),
             ), replace=True)
             return
         if (operation, value) == ("draft", "edit"):
@@ -91,6 +91,10 @@ async def draft_action(callback: CallbackQuery, diary: Diary, settings: Settings
             await asyncio.to_thread(diary.edit, day, track={**day.track, "profile": value, "signal": "user"}, step="")
         elif operation == "date" and value in {"today", "yesterday"}:
             await asyncio.to_thread(diary.update_detail, day, "date", value)
+        elif operation == "weather" and value in WEATHER:
+            await asyncio.to_thread(diary.update_detail, day, "weather", WEATHER[value])
+        elif operation == "caption":
+            await asyncio.to_thread(diary.accept_photo_caption, day, value)
         elif operation == "mood" and value in MOODS:
             await asyncio.to_thread(diary.update_detail, day, "mood", MOODS[value])
         elif operation == "clear" and value in DETAILS:
@@ -122,6 +126,8 @@ async def save(callback: CallbackQuery, diary: Diary, settings: Settings, albums
             await reply(message, PROMPTS["album_pending"])
             return
     existing = (await asyncio.to_thread(diary.get, owner, day_id)) if settings.first_save_sticker_id else None
+    await reply(message, PROMPTS["assembling"], replace=True)
+    await send_optional_sticker(message, settings.assembly_sticker_id)
     try:
         day = await asyncio.to_thread(diary.save, owner, day_id)
     except Exception as exc:
@@ -138,7 +144,7 @@ async def save(callback: CallbackQuery, diary: Diary, settings: Settings, albums
         return
     await reply(message, PROMPTS["saved"].format(title=escape(day.title)), keyboard(
         (web_link("day", settings.webapp_url, day.id),), (web_link("to_archive", settings.webapp_url),),
-        (action(LABELS["new"], "draft:new"),),
+        (action("📅 Напомнить через год", f"ann:on:{day.id}"),), (action(LABELS["new"], "draft:new"),),
     ), replace=True)
     if settings.first_save_sticker_id and not existing and await asyncio.to_thread(diary.first_saved_id, owner) == day.id:
         await send_optional_sticker(message, settings.first_save_sticker_id)

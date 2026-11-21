@@ -3,11 +3,13 @@ import logging
 import uvicorn
 from pydantic import ValidationError
 
+from app.infrastructure.audio.speech import PiperSpeech
 from app.infrastructure.db.database import open_database
 from app.infrastructure.media.storage import MediaStore
 from app.services.diary import Diary
+from app.services.narration import Narration
 from app.web.application import create_app
-from config.settings import Settings
+from config.settings import ROOT, Settings
 from demo.seed import populate
 
 logger = logging.getLogger("after_the_day")
@@ -25,7 +27,11 @@ def main() -> None:
         raise SystemExit(2) from None
 
     sessions = open_database(settings.storage, settings.auto_migrate or not settings.private_enabled)
-    diary = Diary(sessions, MediaStore(settings.storage / "media"), settings.app_timezone)
+    media = MediaStore(settings.storage / "media")
+    speech = PiperSpeech(ROOT / settings.voice_directory,
+                        {"irina": settings.voice_one_model, "denis": settings.voice_two_model},
+                        settings.speech_timeout)
+    diary = Diary(sessions, media, settings.app_timezone, Narration(media, speech))
     if not settings.private_enabled:
         if settings.demo_mode:
             logger.info("DEMO_MODE=true. Starting the fictional web-only diary.")

@@ -5,14 +5,23 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Old Standard";
+  src: url("/fonts/OldStandard-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
-  --ink: #17132B;
-  --paper: #FFF5E7;
+  --ink: #201D2B;
+  --paper: #F8F0DC;
   --white: #FFFCF6;
-  --lilac: #AA89FF;
-  --lime: #DBF565;
-  --tomato: #FF6B55;
+  --lilac: #BAA3F8;
+  --lime: #DAEF67;
+  --tomato: #FA6248;
+  --cobalt: #4761F5;
+  --cobalt-ink: #2E45C1;
   --pool: #73C8F4;
   --muted: #61556B;
   --line: #D9CBCE;
@@ -26,7 +35,8 @@
   --pad-right: max(env(safe-area-inset-right, 0px), var(--telegram-right, 0px));
   --pad-bottom: max(env(safe-area-inset-bottom, 0px), var(--telegram-bottom, 0px));
   --pad-left: max(env(safe-area-inset-left, 0px), var(--telegram-left, 0px));
-  --route-ms: 395ms;
+  --route-ms: 380ms;
+  --reading: "Old Standard", Georgia, serif;
   --player-ms: 320ms;
   --sticker-ms: 280ms;
   --sheet-ms: 265ms;

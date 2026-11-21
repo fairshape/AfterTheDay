@@ -40,11 +40,15 @@ export function transitionCover(source, apply) {
 }
 
 export function enterPlayer(stage, projection, source) {
-  if (!source?.naturalWidth || reducedMotion() || !projection.animate) return;
-  const rect = source.getBoundingClientRect();
+  if (reducedMotion() || !projection.animate) return;
+  const rect = source?.naturalWidth ? source.getBoundingClientRect() : null;
+  if (!rect?.width || rect.bottom < 0 || rect.top > innerHeight) {
+    projection.animate([{opacity: 0}, {opacity: 1}], {duration: duration("player") * .7, easing: "ease-out"});
+    return;
+  }
   const screen = stage.getBoundingClientRect();
   const destination = projection.getBoundingClientRect();
-  if (!screen.width || rect.width < 1 || rect.bottom < 0 || rect.top > innerHeight) return;
+  if (!screen.width) return;
   const timing = {duration: duration("player"), easing: "cubic-bezier(.2,.75,.23,1)"};
   const flight = projection.animate([
     {left: `${rect.left - screen.left}px`, top: `${rect.top - screen.top}px`,

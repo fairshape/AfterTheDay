@@ -36,7 +36,10 @@ class MediaStore:
                 raise ValueError("audio_size")
             metadata = inspect_audio(data)
 
-        asset_id = uuid4().hex
+        return self.write(day_id, data, metadata)
+
+    def write(self, day_id: str, data: bytes, metadata: dict, *, generated: bool = False) -> dict:
+        asset_id = ("n-" if generated else "") + uuid4().hex
         path = self.path(day_id, asset_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(".part")

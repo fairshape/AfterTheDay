@@ -1,5 +1,5 @@
 import { api } from "./client.js";
-import { editing, text } from "./copy.js";
+import { editing, text, voiceText } from "./copy.js";
 import { button, element } from "./dom.js";
 
 function expandable(label) {
@@ -8,7 +8,7 @@ function expandable(label) {
   return panel;
 }
 
-export function whyPanel(scene) {
+export function whyPanel(scene, narration, photos) {
   const panel = expandable(text.why);
   const list = element("dl", "rationale");
   const { signals } = scene;
@@ -16,19 +16,23 @@ export function whyPanel(scene) {
     : signals.focus === "pin" ? (signals.pinText ? text.whyPin(signals.pinText) : text.whyPhotoPin)
     : text.whyExcerpt(signals.story);
   const ratio = (number) => new Intl.NumberFormat("ru").format(number);
+  const photoIndex = photos.findIndex((photo) => photo.id === scene.palette.mainPhoto);
   const measured = scene.soundtrack?.analysis?.cutCues || [];
   const descriptions = scene.version === 2 ? [
     [text.whyWords, editing.hold(signals.story, ratio(signals.finalHold))],
-    [text.whyPhotos, scene.palette.source === "photo" ? editing.palette : editing.curated],
+    [text.whyPhotos, scene.palette.source === "photo" && photoIndex >= 0 ? `${editing.palette} Фото №${photoIndex+1} задало основной цвет.` : editing.curated],
     [text.whyMusic, scene.soundtrack.basis === "even" ? editing.evenBasis : measured.length ?
       editing.measured(measured.map((cue) => ratio(cue.audioTime)).join(", ")) :
-      `${editing.fallback} ${text.profile[signals.profile] || ""}.`],
+      signals.source === "waveform" ? editing.pulse : editing.fallback],
   ] : [
     [text.whyWords, words],
     [text.whyPhotos, text.whyPalette(signals.photoCount)],
     [text.whyMusic, text.whyRhythm(text.profile[signals.profile], text.source[signals.source],
       ratio(signals.baseSeconds), ratio(signals.transition), Math.round(signals.motion * 100))],
   ];
+  if (narration?.timing?.length && narration.sceneKey === scene.narrationKey) {
+    descriptions.push([voiceText.title, voiceText.explanation(voiceText[narration.rate])]);
+  }
   for (const [label, copy] of descriptions) {
     const row = element("div");
     row.append(element("dt", "", label), element("dd", "", copy));
@@ -49,6 +53,7 @@ export function whyPanel(scene) {
 
 export function sceneEditor(day, {preview, confirm}) {
   const panel = expandable(editing.title);
+  panel.classList.add("montage-editor");
   const form = element("form", "pin-form");
   const photoLabel = element("label", "pin-field", editing.main);
   const photo = element("select");

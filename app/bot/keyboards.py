@@ -7,11 +7,13 @@ def action(label: str, callback: str) -> InlineKeyboardButton:
     return InlineKeyboardButton(text=LABELS.get(label, label), callback_data=callback)
 
 
-def web_link(label: str, base: str, day_id: str = "", *, preview: bool = False) -> InlineKeyboardButton:
+def web_link(label: str, base: str, day_id: str = "", *, preview: bool = False, view: str = "") -> InlineKeyboardButton:
     url = f"{base}/?day={day_id}" if day_id else f"{base}/"
     if preview and day_id:
         url += "&preview=1"
-    return InlineKeyboardButton(text=LABELS[label], web_app=WebAppInfo(url=url))
+    if view:
+        url += f"?view={view}"
+    return InlineKeyboardButton(text=LABELS.get(label, label), web_app=WebAppInfo(url=url))
 
 
 def keyboard(*rows) -> InlineKeyboardMarkup:

@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import SimpleEventIsolation
 from aiogram.types import BotCommand, MenuButtonWebApp, WebAppInfo
 
 from app.bot.copy import COMMANDS
-from app.bot.handlers import draft, materials, songs, start
+from app.bot.handlers import collection, draft, materials, songs, start
 from app.bot.handlers.materials import AlbumReplies
 from app.infrastructure.catalogue.itunes import ITunesCatalogue
 from app.services.diary import Diary
@@ -18,7 +18,7 @@ async def poll(settings: Settings, diary: Diary, shutdown: asyncio.Event,
                publish_username: Callable[[str | None], None]) -> None:
     dispatcher = Dispatcher(events_isolation=SimpleEventIsolation())
     albums = AlbumReplies()
-    dispatcher.include_routers(start.router, draft.router, songs.router, materials.router)
+    dispatcher.include_routers(start.router, collection.router, draft.router, songs.router, materials.router)
     ready = asyncio.Event()
 
     async def signal_ready() -> None:

@@ -4,8 +4,8 @@ from dataclasses import dataclass
 TURN = re.compile(r"[,;—]?\s+\b(?:но|зато|вдруг|а потом|и наконец)\s+", re.I)
 RELEASE = re.compile(r"\b(?:отправили|сдали|успели|выдохнули|закончили|submitted)\b", re.I)
 CLOSENESS = re.compile(r"\b(?:какао|кружк\w*|обня\w*|ладон\w*|разговаривал\w*)\b", re.I)
-RESTLESS = re.compile(r"напряж|тревож|тревог|нерв|спеш|резк", re.I)
-QUIET = re.compile(r"спокой|тихо|нежн|устал|peace|quiet", re.I)
+RESTLESS = re.compile(r"напряж|тревож|тревог|нерв|спеш|торопил|резк", re.I)
+QUIET = re.compile(r"спокой|тихо|нежн|устал|молча|тишин|peace|quiet", re.I)
 LEAD_IN = re.compile(r"^(?:сегодня|потом|в общем|кажется|я помню|мы помним|today)\b[ ,]*", re.I)
 
 
@@ -60,6 +60,7 @@ def interpret(story: str, details: dict) -> StoryArc:
     if not turn and len(phrases) > 2:
         turn = next((part for part in phrases[1:-1] if part not in (opening, ending)), "")
     mood = details.get("mood", "")
+    quiet = bool(QUIET.search(mood or story))
+    restless = bool(RESTLESS.search(mood or story))
     return StoryArc(title, opening, turn, ending, "pin" if selected else "release" if release else "excerpt",
-                    bool(release), bool(CLOSENESS.search(turn or ending)), bool(QUIET.search(mood)),
-                    bool(RESTLESS.search(mood)))
+                    bool(release), bool(CLOSENESS.search(turn or ending)), quiet, restless)

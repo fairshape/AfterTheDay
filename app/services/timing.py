@@ -15,6 +15,7 @@ class Rhythm:
 RHYTHMS = {
     "calm": Rhythm(4.6, .68, 1.045, 1.05),
     "rhythmic": Rhythm(3.0, .17, 1.085, .72),
+    "rising": Rhythm(4.0, .29, 1.08, .88),
     "tense": Rhythm(2.45, .09, 1.065, .82),
 }
 MAX_EXCERPT = 26
@@ -56,7 +57,7 @@ def excerpt(track: dict, ideal: float, analysis: AudioAnalysis | None) -> tuple[
 
 
 def edit_points(captions: list[str], total: float, offset: float, rhythm: Rhythm,
-                final_hold: bool, cues: tuple[AudioCue, ...]) -> tuple[list[float], list[dict]]:
+                final_hold: bool, cues: tuple[AudioCue, ...], *, release: bool = False) -> tuple[list[float], list[dict]]:
     count = len(captions)
     minimum = [min(3.15, max(1.5, len(caption)/20 + .55)) for caption in captions]
     if final_hold:
@@ -66,9 +67,12 @@ def edit_points(captions: list[str], total: float, offset: float, rhythm: Rhythm
     minimum = [seconds * ratio for seconds in minimum]
     weights = [1.0] * count
     if count > 1 and final_hold:
-        weights[-1] = 1.9
+        weights[-1] = 3.0 if release else 1.9
     if count > 2:
         weights[0] = .83
+    if rhythm is RHYTHMS["rising"] and count > 1:
+        weights[0] *= 1.65
+        weights[1] *= .85
     remaining = max(0, total - sum(minimum))
     ideal = [seconds + remaining*weight/sum(weights) for seconds, weight in zip(minimum, weights)]
     points = [0.0]

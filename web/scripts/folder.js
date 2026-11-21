@@ -1,14 +1,16 @@
+import { dayCollection } from "./collection.js";
 import { memoryCover } from "./art.js";
 import { api, asset } from "./client.js";
-import { editing, scrapbook as copy, text } from "./copy.js";
+import { editing, musicText, scrapbook as copy, text, voiceText } from "./copy.js";
 import { button, captionedImage, element } from "./dom.js";
 import { decorate, icon } from "./icons.js";
 import { prepare } from "./player.js";
 import { sceneEditor, whyPanel } from "./scene-tools.js";
 import { coverEditor, photoViewer } from "./sheet.js";
 import { songLink } from "./song-link.js";
+import { storyAudio, voicePanel } from "./voice.js";
 
-function soundtrack(track, telegram) {
+function soundtrack(track, telegram, scene) {
   const section = element("section", "reading-section song-section");
   section.append(element("h2", "reading-title", copy.song));
   const card = element("div", "song-card");
@@ -17,10 +19,35 @@ function soundtrack(track, telegram) {
   mark.append(icon("music"));
   const label = element("div");
   label.append(element("p", "track-name", track.title));
-  if (track.artist) label.append(element("p", "microcopy", track.album ?
-    `${track.artist} · ${track.album}` : track.artist));
+  const metadata = [track.artist, track.album, track.genre, track.year].filter(Boolean);
+  if (metadata.length) label.append(element("p", "microcopy", metadata.join(" · ")));
   row.append(mark, label);
   card.append(row);
+  const source = track.provider === "itunes" ? musicText.catalogue : track.kind === "file" ? musicText.local : musicText.link;
+  card.append(element("p", "microcopy", source));
+  const analysis = scene?.soundtrack?.analysis;
+  const traits = [];
+  if (analysis?.tempoConfidence >= .5 && analysis.tempo) {
+    traits.push(musicText.approximateBpm(Math.round(analysis.tempo)));
+    if (analysis.tempoConfidence >= .72) traits.push(musicText.steady);
+  }
+  if (analysis?.softEnding) traits.push(musicText.softEnding);
+  if (analysis?.cutCues?.length) traits.push(musicText.cueCount(analysis.cutCues.length));
+  if (traits.length) card.append(element("p", "microcopy", `${musicText.measured} · ${traits.join(" · ")}`));
+  else if (track.profile && text.profile[track.profile]) {
+    card.append(element("p", "microcopy", `${track.signal === "genre_tag" ? musicText.genre : musicText.described} · ${text.profile[track.profile]}`));
+  }
+  if (analysis?.energy?.length) {
+    const energy = element("div", "track-energy");
+    energy.role = "img";
+    energy.setAttribute("aria-label", musicText.energy);
+    for (const sample of analysis.energy) {
+      const bar = element("span");
+      bar.style.setProperty("--level", `${Math.min(100, 11 + sample * 64)}%`);
+      energy.append(bar);
+    }
+    card.append(energy);
+  }
   if (track.kind === "link") card.append(songLink(track, telegram, "outline-button"),
     element("p", "microcopy", editing.linked));
   else {
@@ -55,7 +82,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   if (day.draft) header.append(element("p", "microcopy", editing.draft));
   const hero = element("div", "folder-cover");
   const context = element("div", "folder-context");
-  for (const key of ["time", "place"]) {
+  for (const key of ["time", "place", "weather"]) {
     if (day.details[key]) context.append(element("span", "", day.details[key]));
   }
   context.hidden = !context.childElementCount;
@@ -68,12 +95,23 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   }), "play", text.preparing);
   play.disabled = true;
   const edit = decorate(button("", "outline-button", () => {
+    article.querySelectorAll("audio").forEach(audio => audio.pause());
     overlay((close) => coverEditor(day, (updated) => {
       day = updated;
       renderHero();
       updateArchive(day);
       status.textContent = copy.saved;
       preload();
+      if (!day.draft) {
+        const previous = article.querySelector(".day-collection");
+        previous?.replaceWith(dayCollection(day,updateArchive));
+      }
+      refreshStorySound();
+      const nextVoice = voicePanel(day, updateVoice);
+      voice.replaceWith(nextVoice);
+      voice = nextVoice;
+      renderTools();
+      renderComparison();
     }, close));
   }), "edit", copy.edit);
   const saveDraft = button(editing.saveDay, "primary-button", async () => {
@@ -86,6 +124,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     }
   });
   actions.append(play, day.draft ? saveDraft : edit);
+  if (day.draft) actions.append(edit);
   const linkedSong = element("div", "linked-song-note");
   if (day.track.kind === "link") {
     const description = day.track.provider === "itunes" ? editing.linkedApple : editing.linkedExternal;
@@ -98,8 +137,31 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   const reading = element("div", "reading");
   const story = element("section", "reading-section");
   story.append(element("h2", "reading-title", copy.story), element("p", "original-story", day.story));
+  const storySound = element("div");
+  story.append(storySound);
+  let voice = voicePanel(day, updateVoice);
+  function refreshStorySound() {
+    storySound.replaceChildren(storyAudio(day, () => {
+      voice.open = true;
+      voice.scrollIntoView({block:"nearest"});
+    }));
+  }
+
+  function updateVoice(updated) {
+    day = updated;
+    refreshStorySound();
+    refreshWhy();
+    preload();
+    status.textContent = voiceText.saved;
+  }
+  refreshStorySound();
+  article.addEventListener("play", (event) => {
+    if (event.target instanceof HTMLAudioElement) {
+      for (const audio of article.querySelectorAll("audio")) if (audio !== event.target) audio.pause();
+    }
+  }, true);
   const details = element("dl", "memory-details");
-  for (const key of ["weather", "mood", "key_detail"]) {
+  for (const key of ["mood", "key_detail"]) {
     if (!day.details[key]) continue;
     const row = element("div");
     row.append(element("dt", "", text.fields[key]), element("dd", "", day.details[key]));
@@ -124,7 +186,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     if (day.comparison) entries.push({label:day.comparison.track.title, scene:day.comparison});
     if (day.scene.evenFrames) {
       entries.push({label:editing.even, scene:{...day.scene, frames:day.scene.evenFrames,
-        soundtrack:{...day.scene.soundtrack, basis:"even"},
+        soundtrack:{...day.scene.soundtrack, basis:"even"}, narrationKey:null,
         signals:{...day.scene.signals, finalHold:day.scene.evenFrames.at(-1).seconds}}});
     }
     return entries;
@@ -139,14 +201,23 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     day = updated;
     updateArchive(day);
     renderHero();
+    refreshStorySound();
+    const nextVoice = voicePanel(day, updateVoice);
+    voice.replaceWith(nextVoice);
+    voice = nextVoice;
     renderTools();
     renderComparison();
     preload();
     status.textContent = editing.confirmed;
   }
 
+  const why = element("div");
+  function refreshWhy() {
+    why.replaceChildren(whyPanel(variants()[selected].scene, day.narration, day.photos));
+  }
   function renderTools() {
-    secondary.replaceChildren(whyPanel(variants()[selected].scene), sceneEditor(day, {
+    refreshWhy();
+    secondary.replaceChildren(why, sceneEditor(day, {
       confirm,
       preview: async (candidate) => {
         const prepared = await prepare(candidate, candidate.scene, asset);
@@ -188,8 +259,10 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     comparison.append(list);
   }
   renderComparison();
-  reading.append(story, photos, soundtrack(day.track, telegram), comparison, secondary);
-  article.append(header, hero, context, actions, linkedSong, status, reading);
+  reading.append(story, photos, soundtrack(day.track, telegram, day.scene), comparison, voice, secondary);
+  article.append(header, hero, context, actions, linkedSong, status);
+  if (!day.draft) article.append(dayCollection(day, updateArchive));
+  article.append(reading);
 
   let generation = 0;
   async function preload() {

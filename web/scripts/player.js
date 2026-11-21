@@ -1,5 +1,5 @@
 import { stickerImage, stickerMoment } from "./art.js";
-import { editing, scrapbook as copy, text } from "./copy.js";
+import { editing, scrapbook as copy, text, voiceText } from "./copy.js";
 import { button, dateLabel, element } from "./dom.js";
 import { decorate } from "./icons.js";
 import { duration, enterPlayer, reducedMotion } from "./motion.js";
@@ -20,22 +20,28 @@ export async function prepare(day, scene, asset) {
       return url;
     } catch { return ""; }
   };
-  const [images, audio] = await Promise.all([
+  const narration = day.narration?.sceneKey && day.narration.sceneKey === scene.narrationKey ?
+    (day.narration.mix || day.narration.voiceOnly) : null;
+  const audioSource = async (url) => url ? asset(url).catch(() => "") : "";
+  const [images, audio, voiced] = await Promise.all([
     Promise.all(paths.map(async (path) => [path, await source(path)])),
-    scene.track.asset ? source(scene.track.asset) : "",
+    audioSource(scene.track.asset), audioSource(narration?.asset),
   ]);
-  return { images: new Map(images), audio };
+  return { images: new Map(images), audio, voiced };
 }
 
 export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   const track = scene.track;
   const precise = scene.version >= 2;
   const soundtrack = scene.soundtrack;
-  const intro = !precise && assets.images.get(day.cover) && day.cover !== scene.frames[0].asset
+  const intro = !precise && !assets.voiced && assets.images.get(day.cover) && day.cover !== scene.frames[0].asset
     ? [{asset:day.cover, seconds:duration("cover-hold") / 1000, caption:"", transition:.2, motion:{from:1,to:1,x:0,y:0}}] : [];
   const frames = [...intro, ...scene.frames];
   const total = soundtrack?.duration ?? frames.reduce((sum, frame) => sum + frame.seconds, 0);
-  const audioOffset = soundtrack?.offset ?? track.cue ?? 0;
+  const musicOffset = soundtrack?.offset ?? track.cue ?? 0;
+  let narrated = !!assets.voiced;
+  const offset = () => narrated ? 0 : musicOffset;
+  const selectedAudio = () => narrated ? assets.voiced : assets.audio;
   const stickerIndex = intro.length + stickerMoment(day.style.sticker, scene.frames);
   const stickerStart = frames.slice(0, stickerIndex).reduce((sum, frame) => sum + frame.seconds, 0) +
     Math.min(.6, frames[stickerIndex].seconds * .26);
@@ -53,6 +59,12 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   const projection = element("div", "projection");
   const layers = [element("img", "frame"), element("img", "frame")];
   for (const layer of layers) { layer.alt = ""; projection.append(layer); }
+  const openingPrint = frames[0].asset !== day.cover && from?.naturalWidth ? from.cloneNode() : null;
+  if(openingPrint) {
+    openingPrint.className="opening-print";
+    openingPrint.alt="";
+    projection.append(openingPrint);
+  }
   const missing = element("p", "frame-error", text.unavailablePhoto);
   const veil = element("div", "film-veil");
   const heading = element("header", "scene-heading");
@@ -62,7 +74,7 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   date.dateTime = day.date;
   heading.append(back, date);
   const sticker = stickerImage(day.style.sticker, "playback-sticker");
-  sticker.hidden = true;
+  if (sticker) sticker.hidden = true;
   const caption = element("p", "scene-caption");
   const status = element("p", "scene-status");
   status.role = "status";
@@ -92,9 +104,11 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   replayButton.setAttribute("aria-label", copy.replay);
   const audio = element("audio");
   audio.preload = "auto";
-  if (assets.audio) audio.src = assets.audio;
-  soundButton.hidden = !assets.audio;
-  controls.append(pauseButton, soundButton, replayButton, time);
+  if (selectedAudio()) audio.src = selectedAudio();
+  soundButton.hidden = !selectedAudio();
+  const narrationButton = decorate(button("", "player-icon narration-control", toggleNarration), "voice");
+  narrationButton.hidden = !assets.voiced;
+  controls.append(pauseButton, soundButton, narrationButton, replayButton, time);
   const linkedSong = element("div", "player-song");
   if (track.kind === "link") {
     linkedSong.append(element("p", "", editing.linkedScene), songLink(track, telegram, "player-link"));
@@ -104,7 +118,9 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   finish.append(decorate(button("", "player-action", restart), "replay", copy.again),
     button(copy.toMemory, "player-action secondary", destroy));
   footer.append(status, finish, linkedSong, progressBar, controls);
-  stage.append(ink, projection, missing, veil, heading, sticker, caption, footer, audio);
+  stage.append(ink, projection, missing, veil, heading);
+  if (sticker) stage.append(sticker);
+  stage.append(caption, footer, audio);
 
   let elapsed = 0;
   let started = 0;
@@ -117,12 +133,14 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   let missingAudio = !!track.asset && !assets.audio;
   let closed = false;
   let buffering = false;
-  const useAudioClock = () => precise && !!assets.audio && !missingAudio && !audioFailed;
+  const useAudioClock = () => (precise || !!assets.voiced) && !!selectedAudio() && !missingAudio && !audioFailed;
 
   function showAudioStatus() {
     status.textContent = missingAudio ? text.unavailableAudio : audioFailed ? text.playbackSound : buffering && running ? editing.buffering : "";
     decorate(soundButton, muted ? "muted" : "volume");
     soundButton.setAttribute("aria-label", muted ? text.soundOn : text.soundOff);
+    narrationButton.setAttribute("aria-label", narrated ? voiceText.toggleOff : voiceText.toggleOn);
+    narrationButton.classList.toggle("voice-active", narrated);
   }
 
   function timestamp(value) {
@@ -136,15 +154,19 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   }
 
   function draw(seconds) {
-    let offset = 0;
+    if(openingPrint) {
+      openingPrint.hidden=seconds>=.72;
+      openingPrint.style.opacity=reducedMotion()?0:String(Math.min(1,Math.max(0,(.72-seconds)/.38)));
+    }
+    let shotStart = 0;
     let index = 0;
-    while (index < frames.length - 1 && seconds >= (frames[index + 1].start ?? offset + frames[index].seconds)) {
-      offset = frames[index + 1].start ?? offset + frames[index].seconds;
+    while (index < frames.length - 1 && seconds >= (frames[index + 1].start ?? shotStart + frames[index].seconds)) {
+      shotStart = frames[index + 1].start ?? shotStart + frames[index].seconds;
       index++;
     }
     const frame = frames[index];
     const prior = frames[index - 1];
-    const local = Math.max(0, seconds - offset);
+    const local = Math.max(0, seconds - shotStart);
     const blend = prior && frame.transition > 0 && !reducedMotion() ? Math.min(local / frame.transition, 1) : 1;
     if (currentIndex !== index) {
       const currentSource = assets.images.get(frame.asset);
@@ -175,8 +197,8 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
     time.textContent = `${timestamp(seconds)} / ${timestamp(total)}`;
 
     const stickerTime = seconds - stickerStart;
-    sticker.hidden = stickerTime < 0 || stickerTime > stickerHold;
-    if (!sticker.hidden) {
+    if (sticker) sticker.hidden = stickerTime < 0 || stickerTime > stickerHold;
+    if (sticker && !sticker.hidden) {
       const slide = Math.min(1, stickerTime / settle);
       const ease = 1 - (1 - slide) ** 3;
       const scale = .72 + .28 * ease + .13 * Math.sin(slide * Math.PI);
@@ -194,15 +216,15 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
 
   function tick(now) {
     if (!running) return;
-    elapsed = Math.min(total, Math.max(0, useAudioClock() ? audio.currentTime - audioOffset : (now - started) / 1000));
+    elapsed = Math.min(total, Math.max(0, useAudioClock() ? audio.currentTime - offset() : (now - started) / 1000));
     draw(elapsed);
     if (elapsed >= total - .008) finishScene();
     else animation = requestAnimationFrame(tick);
   }
 
   function launchAudio() {
-    if (!assets.audio || missingAudio || (!precise && muted)) return;
-    const playbackTime = audioOffset + elapsed;
+    if (!selectedAudio() || missingAudio || (!precise && !assets.voiced && muted)) return;
+    const playbackTime = offset() + elapsed;
     if (Number.isFinite(audio.duration) && playbackTime >= audio.duration) return;
     if (Math.abs(audio.currentTime - playbackTime) > .03) audio.currentTime = playbackTime;
     audio.play().then(() => {
@@ -223,7 +245,7 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
     clearTimeout(finishTimer);
     finish.hidden = true;
     elapsed = Math.min(total, Number(scrub.value));
-    if (assets.audio && !missingAudio) audio.currentTime = audioOffset + elapsed;
+    if (selectedAudio() && !missingAudio) audio.currentTime = offset() + elapsed;
     started = performance.now() - elapsed * 1000;
     draw(elapsed);
     if (elapsed >= total) finishScene();
@@ -262,11 +284,27 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   function toggleSound() {
     muted = !muted;
     showAudioStatus();
-    if (precise) {
+    if (precise || assets.voiced) {
       audio.muted = muted;
       if (!muted && running && audioFailed) launchAudio();
     } else if (muted) audio.pause();
     else if (running) launchAudio();
+  }
+
+  function toggleNarration() {
+    if (!assets.voiced) return;
+    const wasRunning = running;
+    pause();
+    narrated = !narrated;
+    audioFailed = false;
+    missingAudio = false;
+    if (selectedAudio()) audio.src = selectedAudio();
+    else audio.removeAttribute("src");
+    audio.load();
+    audio.muted = muted;
+    soundButton.hidden = !selectedAudio();
+    showAudioStatus();
+    if (wasRunning) play();
   }
 
   function onVisibility() {
@@ -314,7 +352,7 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
     if (running && useAudioClock()) finishScene();
   });
   audio.addEventListener("error", () => {
-    if (!closed && assets.audio) {
+    if (!closed && selectedAudio()) {
       started = performance.now() - elapsed * 1000;
       buffering = false;
       missingAudio = true;

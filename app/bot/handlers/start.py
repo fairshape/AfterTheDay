@@ -21,8 +21,10 @@ router.callback_query.filter(F.message.chat.type == ChatType.PRIVATE)
 async def send_home(message: Message, owner: int, diary: Diary, settings: Settings, text: str) -> None:
     draft = await asyncio.to_thread(diary.draft, owner)
     await reply(message, text, keyboard(
-        (action("new", "draft:new"), web_link("archive", settings.webapp_url)),
         (action("resume", "draft:resume"),) if draft else (),
+        (action("new", "draft:new"), web_link("archive", settings.webapp_url, view="journal")),
+        (action("🔎 Найти воспоминание", "collection:search"), web_link("⭐ Избранное", settings.webapp_url, view="favorites")),
+        (web_link("🔔 Напоминания", settings.webapp_url, view="reminders"),),
     ))
 
 

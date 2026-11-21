@@ -2,19 +2,21 @@ from html import escape
 
 from aiogram.types import InlineKeyboardButton, Message
 
-from app.bot.copy import LABELS, MONTHS, MOODS, PROMPTS, STATUS
+from app.bot.copy import LABELS, MONTHS, MOODS, PROMPTS, STATUS, WEATHER
 from app.bot.keyboards import action, keyboard, song_options, web_link
 from app.bot.messages import reply
 from app.infrastructure.db.models import Day
 from app.services.diary import TRACK_STEPS, missing_step
 from app.services.music import track_link
+from app.services.context import visible_place
 
 
 async def show_draft(message: Message, day: Day, notice: str = "", *, timezone_year: int, replace: bool = False, webapp_url: str = "") -> None:
     context = [f"{day.memory_date.day} {MONTHS[day.memory_date.month - 1]}"]
     if day.memory_date.year != timezone_year:
         context[0] += f" {day.memory_date.year}"
-    context.extend(day.details[key] for key in ("time", "place", "weather", "mood") if day.details.get(key))
+    context.extend(value for value in (day.details.get("time"), visible_place(day.details),
+                                        day.details.get("weather"), day.details.get("mood")) if value)
     song_url = track_link(day.track.get("url", "")) if day.track.get("kind") == "link" else None
     status = [
         STATUS["story_added" if day.story else "no_story"],
@@ -23,28 +25,36 @@ async def show_draft(message: Message, day: Day, notice: str = "", *, timezone_y
     ]
     step = day.step or missing_step(day) or "ready"
     rows = []
+    if step == "story":
+        caption = next((photo for photo in day.photos if photo["caption"].strip()
+                        and not track_link(photo["caption"].strip())), None)
+        if caption:
+            rows.append((action("use_caption", f"caption:{caption['id']}"),))
     if step == "profile":
-        rows.append(tuple(action(profile, f"profile:{profile}") for profile in ("calm", "rhythmic", "tense")))
+        rows.extend([tuple(action(profile, f"profile:{profile}") for profile in ("calm", "rhythmic", "tense")),
+                     (action("rising", "profile:rising"),)])
     elif step == "ready":
-        rows.extend([(action("save", f"save:{day.id}"),),
-                     (action("edit", "draft:edit"), action("details", "draft:details"))])
-        if webapp_url:
-            rows.insert(1, (web_link("preview", webapp_url, day.id, preview=True),))
+        primary = web_link("preview", webapp_url, day.id, preview=True) if webapp_url else action("save", f"save:{day.id}")
+        rows.extend([(primary,), (action("edit", "draft:edit"), action("details", "draft:details"))])
 
     if step in TRACK_STEPS or step == "track":
         rows.extend(song_options())
         if step in TRACK_STEPS:
             rows.append((action("back", "draft:back"),))
-    elif step in {"date", "time", "place", "weather", "mood", "key_detail", "cue", "favorite"}:
+    elif step in {"date", "time", "place", "place_label", "weather", "mood", "key_detail", "cue", "favorite"}:
         if step == "date":
             rows.append((action("today", "date:today"), action("yesterday", "date:yesterday")))
+        if step == "weather":
+            rows.append(tuple(action(label, f"weather:{key}") for key, label in WEATHER.items()))
         if step == "mood":
             rows.append(tuple(action(label.capitalize(), f"mood:{key}") for key, label in MOODS.items()))
         if step == "favorite":
             rows.extend(photo_buttons(day, "favorite"))
-        if step in day.details or (step == "favorite" and "favorite_photo" in day.details) or (step == "cue" and day.track.get("cue")):
+        if ((step == "date" and (day.details.get("event_date") or "_creation_date" not in day.details))
+                or (step in {"place", "place_label"} and day.details.get("coordinates")) or step in day.details
+                or (step == "favorite" and "favorite_photo" in day.details) or (step == "cue" and day.track.get("cue"))):
             rows.append((action("clear", f"clear:{step}"),))
-        rows.append((action("back", "draft:back"),))
+        rows.append((action("skip", "draft:back"), action("back_details", "draft:details")))
     elif step == "photo_edit":
         rows.extend(photo_buttons(day, "remove"))
         rows.append((action("back", "draft:back"),))

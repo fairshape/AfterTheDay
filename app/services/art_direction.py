@@ -21,18 +21,18 @@ def suggest_color(day: Day, scene: dict | None = None) -> str:
     return min(COLORS, key=lambda key: sum((a - b) ** 2 for a, b in zip(accent, rgb(COLORS[key]))))
 
 
-def suggest_sticker(day: Day) -> str:
-    description = " ".join(str(day.details.get(key, "")) for key in ("weather", "time", "key_detail", "place"))
-    material = f"{description} {day.story}"
+def suggest_sticker(story: str, details: dict) -> str:
+    description = " ".join(str(details.get(key, "")) for key in ("weather", "time", "key_detail", "place"))
+    material = f"{description} {story}"
     return next((name for name, pattern in STICKERS.items() if pattern.search(material)), "spark")
 
 
 def original_cover(day: Day, scene: dict | None = None) -> dict[str, str]:
     direction = day.details.get("_art_direction", {})
     color = direction.get("color")
-    sticker = direction.get("sticker")
+    sticker = direction.get("sticker") or (scene or day.scene).get("sticker")
     return {
         "color": color if color in COLORS else suggest_color(day, scene),
-        "sticker": sticker if sticker in STICKERS else suggest_sticker(day),
+        "sticker": sticker if sticker in STICKERS else suggest_sticker(day.story, day.details),
         "photo": (scene or day.scene).get("cover") or day.photos[0]["id"],
     }

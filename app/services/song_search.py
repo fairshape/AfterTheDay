@@ -26,10 +26,13 @@ class Song:
     track_id: str
     url: str
     provider: str
+    genre: str = ""
+    year: str = ""
 
     def attachment(self) -> dict:
         return {"kind": "link", "provider": self.provider, "track_id": self.track_id,
-                "title": self.title, "artist": self.artist, "album": self.album, "url": self.url}
+                "title": self.title, "artist": self.artist, "album": self.album, "url": self.url,
+                "genre": self.genre, "year": self.year, "metadataSource": "catalogue"}
 
 
 class Catalogue(Protocol):

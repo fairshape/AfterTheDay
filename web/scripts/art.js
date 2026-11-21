@@ -14,6 +14,7 @@ export async function loadArt() {
 }
 
 export function stickerImage(id, className = "") {
+  if (id === "none") return null;
   const sticker = stickers.get(id) || stickers.get("spark");
   const img = element("img", className);
   img.src = `/art/stickers/${sticker.id}.svg`;
@@ -39,6 +40,7 @@ export function memoryCover(day, variant, { style = day.style, readySrc = "", he
     colors.get(style.color) || colors.get(art.colors[0].id);
   const cover = element("div", `memory-cover cover-${variant}`);
   cover.dataset.tone = color.id;
+  cover.dataset.binding = ["ticket","window","moon"].includes(style.sticker) ? "1" : ["cup","camera"].includes(style.sticker) ? "2" : "0";
   cover.classList.toggle("long-title", day.title.length > 42);
   cover.style.setProperty("--cover-tone", color.hex);
   cover.style.setProperty("--cover-accent", color.accent);
@@ -57,7 +59,8 @@ export function memoryCover(day, variant, { style = day.style, readySrc = "", he
   const sticker = stickerImage(style.sticker, "cover-sticker");
   const caption = element("div", "cover-caption");
   caption.append(element(heading, "cover-title", day.title));
-  composition.append(print, stamp, sticker);
+  composition.append(print, stamp);
+  if (sticker) composition.append(sticker);
   cover.append(composition, caption);
   return cover;
 }

@@ -7,9 +7,7 @@ import mutagen
 
 AUDIO_TYPES = {"MP3": "audio/mpeg", "MP4": "audio/mp4", "OggOpus": "audio/ogg",
                "OggVorbis": "audio/ogg", "FLAC": "audio/flac", "WAVE": "audio/wav"}
-PROFILES = {"calm", "rhythmic", "tense"}
-CALM_METADATA = {"ambient", "quiet", "soft", "lullaby", "спокойная", "эмбиент"}
-RHYTHMIC_METADATA = {"dance", "disco", "house", "techno", "диско"}
+PROFILES = {"calm", "rhythmic", "tense", "rising"}
 URL_PATTERN = re.compile(r"https?://[^\s<>]+", re.IGNORECASE)
 
 
@@ -45,13 +43,19 @@ def inspect_audio(data: bytes) -> dict:
     except (mutagen.MutagenError, ValueError, OSError, EOFError, wave.Error, OverflowError) as exc:
         raise ValueError("audio_format") from exc
 
+    metadata = {"mime": mime, "duration": round(duration, 3)}
     try:
         normalized = mutagen.File(BytesIO(data), easy=True)
-        genres = normalized.get("genre", []) if normalized and normalized.tags else []
+        if normalized and normalized.tags:
+            for target, tag in (("title", "title"), ("artist", "artist"), ("album", "album"), ("genre", "genre")):
+                values = normalized.get(tag, [])
+                if values:
+                    metadata[target] = str(values[0]).strip()[:160]
+            values = normalized.get("date", [])
+            if values and re.fullmatch(r"\d{4}", str(values[0])[:4]):
+                metadata["year"] = str(values[0])[:4]
+            if len(metadata) > 2:
+                metadata["metadataSource"] = "file_tags"
     except (mutagen.MutagenError, ValueError, OSError, EOFError):
-        genres = []
-    tags = {str(genre).casefold().strip() for genre in genres}
-    profile = "calm" if tags & CALM_METADATA else "rhythmic" if tags & RHYTHMIC_METADATA else None
-    if profile:
-        return {"mime": mime, "duration": round(duration, 3), "profile": profile, "signal": "genre_tag"}
-    return {"mime": mime, "duration": round(duration, 3)}
+        pass
+    return metadata

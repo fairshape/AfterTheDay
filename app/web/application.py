@@ -8,6 +8,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.services.diary import Diary
+from app.web.routes.collection import router as collection_router
+from app.bot.anniversaries import dispatch
 from app.web.auth import TelegramAuth
 from app.web.routes.diary import NO_CACHE, router
 from config.settings import ROOT, Settings
@@ -24,9 +26,38 @@ def create_app(settings: Settings, diary: Diary) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         task = None
+        reminders = None
+        notification_bot = None
         shutdown = asyncio.Event()
         if settings.private_enabled:
+            from aiogram import Bot
             from app.bot.polling import poll
+            from app.bot.publication import notify_publication
+
+            notification_bot = Bot(settings.bot_token.get_secret_value())
+
+            reminders = asyncio.create_task(dispatch(notification_bot, diary, settings))
+
+            if settings.assembly_sticker_id:
+                async def assembly(owner):
+                    from aiogram.exceptions import TelegramAPIError
+                    try:
+                        await asyncio.wait_for(notification_bot.send_sticker(owner, settings.assembly_sticker_id), timeout=4)
+                    except (TelegramAPIError, TimeoutError):
+                        logger.info("Optional assembly sticker unavailable")
+                application.state.notify_assembly = assembly
+
+            async def notify(day):
+                sticker_id = settings.first_save_sticker_id
+                if sticker_id and await asyncio.to_thread(diary.first_saved_id, day.owner_id) != day.id:
+                    sticker_id = ""
+                try:
+                    await asyncio.wait_for(notify_publication(notification_bot, settings.webapp_url, day, sticker_id),
+                                           timeout=4)
+                except TimeoutError:
+                    logger.warning("Telegram publication notification timed out")
+
+            application.state.notify_publication = notify
 
             def publish_username(username: str | None) -> None:
                 if username:
@@ -49,12 +80,18 @@ def create_app(settings: Settings, diary: Diary) -> FastAPI:
                 for worker in pending:
                     worker.cancel()
                 await asyncio.gather(task, return_exceptions=True)
+            if reminders:
+                reminders.cancel()
+                await asyncio.gather(reminders, return_exceptions=True)
+            if notification_bot:
+                await notification_bot.session.close()
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.diary = diary
     app.state.bot_username = settings.bot_username or None
     app.state.auth = TelegramAuth(settings.bot_token.get_secret_value()) if settings.private_enabled else None
     app.include_router(router)
+    app.include_router(collection_router)
     web = ROOT / "web"
     app.mount("/styles", StaticFiles(directory=web / "styles"), name="styles")
     app.mount("/scripts", StaticFiles(directory=web / "scripts"), name="scripts")

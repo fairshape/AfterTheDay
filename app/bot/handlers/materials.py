@@ -150,12 +150,9 @@ async def material(message: Message, bot: Bot, diary: Diary, settings: Settings,
                 return
         elif message.location or message.venue:
             if day.step == "place":
-                if message.venue:
-                    place = message.venue.title[:120]
-                else:
-                    location = message.location
-                    place = f"{location.latitude:.5f}, {location.longitude:.5f}"
-                await asyncio.to_thread(diary.update_detail, day, "place", place)
+                location = message.venue.location if message.venue else message.location
+                label = message.venue.title if message.venue else ""
+                await asyncio.to_thread(diary.share_location, day, location.latitude, location.longitude, label)
                 notice = ""
             else:
                 notice = PROMPTS["location"]

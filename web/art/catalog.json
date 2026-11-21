@@ -1,10 +1,11 @@
 {
   "colors": [
-    {"id":"pool","label":"Голубой","hex":"#73C8F4","accent":"#FF6B55"},
-    {"id":"tomato","label":"Томатный","hex":"#FF6B55","accent":"#DBF565"},
-    {"id":"lilac","label":"Сиреневый","hex":"#AA89FF","accent":"#17132B"},
-    {"id":"lime","label":"Лаймовый","hex":"#DBF565","accent":"#AA89FF"},
-    {"id":"peach","label":"Персиковый","hex":"#FFC894","accent":"#FF6B55"}
+    {"id":"cobalt","label":"Кобальт","hex":"#4761F5","accent":"#DAEF67"},
+    {"id":"pool","label":"Голубой","hex":"#73C8F4","accent":"#FA6248"},
+    {"id":"tomato","label":"Томатный","hex":"#FA6248","accent":"#DAEF67"},
+    {"id":"lilac","label":"Сиреневый","hex":"#BAA3F8","accent":"#201D2B"},
+    {"id":"lime","label":"Лаймовый","hex":"#DAEF67","accent":"#BAA3F8"},
+    {"id":"peach","label":"Персиковый","hex":"#FFC894","accent":"#FA6248"}
   ],
   "stickers": [
     {"id":"rain","label":"Капля","pattern":"дожд|лив[ен]|луж|морос|капл|rain"},

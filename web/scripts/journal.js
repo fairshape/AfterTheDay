@@ -1,7 +1,7 @@
 import { loadArt } from "./art.js";
 import { createArchive } from "./archive.js";
 import { api, asset, connect, releaseOldAssets } from "./client.js";
-import { scrapbook as copy, text } from "./copy.js";
+import { editing, scrapbook as copy, text } from "./copy.js";
 import { button, element } from "./dom.js";
 import { createFolder } from "./folder.js";
 import { decorate } from "./icons.js";
@@ -94,11 +94,11 @@ async function showDay(id, from = null, link = null) {
   const request = ++generation;
   openedId = id;
   syncNavigation();
+  const isPreview = new URL(location.href).searchParams.get("preview") === "1";
   main.setAttribute("aria-busy", "true");
   if (link) link.setAttribute("aria-busy", "true");
-  else main.replaceChildren(element("p", "page-status", text.loadingDay));
+  else main.replaceChildren(element("p", "page-status", isPreview ? editing.building : text.loadingDay));
   try {
-    const isPreview = new URL(location.href).searchParams.get("preview") === "1";
     const path = `/api/days/${encodeURIComponent(id)}`;
     const day = isPreview ? await api(`${path}/scene/preview`, {}) : await api(path);
     if (request !== generation) return;
@@ -204,7 +204,7 @@ async function start() {
     decorate(document.querySelector(".brand-mark"), "brand");
     decorate(filter, "search");
     filter.setAttribute("aria-controls", "archive-tools");
-    archive = createArchive({open:openFromArchive, record, toggle:filter});
+    archive = createArchive({open:openFromArchive, record, toggle:filter, demo:mode.demo});
     brand.addEventListener("click", (event) => {
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       event.preventDefault();

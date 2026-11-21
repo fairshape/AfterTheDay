@@ -13,14 +13,18 @@
   color: var(--paper);
   overflow: hidden;
 }
-.theater::backdrop { background: transparent; }
+.theater::backdrop { background: var(--ink); animation: backdrop-in var(--player-ms) ease both; }
+@keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 .stage {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
   isolation: isolate;
   display: grid;
   grid-template-rows: auto 1fr auto auto;
-  width: 100%;
-  height: 100%;
+  width: min(100vw, 56.25dvh);
+  aspect-ratio: 9/16;
   padding: calc(12px + var(--pad-top)) calc(16px + var(--pad-right)) calc(14px + var(--pad-bottom)) calc(16px + var(--pad-left));
 }
 .stage-ink, .projection, .film-veil, .frame {
@@ -33,10 +37,6 @@
 .stage-ink { z-index: -4; background: var(--ink); }
 .projection { z-index: -3; overflow: hidden; }
 .frame { object-fit: cover; object-position: 50% 42%; transform-origin: center; }
-@media (min-width: 680px) {
-  .projection { left: calc((100% - 610px) / 2); right: auto; width: 610px; }
-  .stage { padding-inline: max(calc((100% - 580px) / 2), var(--pad-left)); }
-}
 .film-veil {
   z-index: -1;
   background: linear-gradient(180deg, #17132bb8 0%, transparent 24%, transparent 47%, #17132b38 65%, #17132bee 94%, #17132b 100%);
@@ -63,7 +63,7 @@
   height: 45px;
   border: 1px solid #fff5e76c;
   border-radius: 50%;
-  background: #17132b76;
+  background: #201d2b99;
   color: var(--paper);
   padding: 0;
 }
@@ -123,7 +123,7 @@
 .scene-controls {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   flex-wrap: wrap;
 }
 .player-time { margin-left: auto; font-size: .77rem; font-weight: 560; font-variant-numeric: tabular-nums; }
@@ -192,4 +192,19 @@
   border: 1px solid #fff5e77a;
   border-radius: 9px;
   background: #17132b9c;
+}
+
+.voice-active {
+  background: var(--lilac);
+  color: var(--ink);
+  border-color: var(--lilac);
+}
+
+@media (max-width: 345px) {
+  .player-icon { width: 44px; height: 44px; }
+  .stage { padding-inline: max(8px, var(--pad-left)); }
+}
+@media (max-height: 540px) and (orientation: landscape) {
+  .stage { width: min(100vw, max(260px, 56.25dvh)); height: 100dvh; aspect-ratio: auto; }
+  .projection { width: min(100%, 56.25dvh); margin-inline: auto; }
 }

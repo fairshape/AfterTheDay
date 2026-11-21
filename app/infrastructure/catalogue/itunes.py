@@ -1,4 +1,5 @@
 import json
+import re
 from urllib.parse import urlsplit
 
 import aiohttp
@@ -23,7 +24,12 @@ def parse_result(raw: dict) -> Song | None:
                  and target.path.startswith("/") and len(url) <= 1500)
     except ValueError:
         return None
-    return Song(title[:160], artist[:160], album[:160], str(raw["trackId"]), url, "itunes") if valid and title and artist else None
+    if not valid or not title or not artist:
+        return None
+    genre = raw.get("primaryGenreName", "")
+    year = str(raw.get("releaseDate", ""))[:4]
+    return Song(title[:160], artist[:160], album[:160], str(raw["trackId"]), url, "itunes",
+                genre[:120] if isinstance(genre, str) else "", year if re.fullmatch(r"[0-9]{4}", year) else "")
 
 
 class ITunesCatalogue:

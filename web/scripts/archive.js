@@ -1,10 +1,11 @@
+import { calendar, moodPicker, reminderCenter } from "./collection.js";
 import { memoryCover } from "./art.js";
 import { api } from "./client.js";
 import { scrapbook as copy, text } from "./copy.js";
 import { button, element, monthLabel } from "./dom.js";
 import { decorate } from "./icons.js";
 
-export function createArchive({ open, record, toggle }) {
+export function createArchive({ open, record, toggle, demo }) {
   const page = element("div", "archive-page");
   const introduction = element("header", "archive-intro");
   const title = element("h1", "display", copy.home);
@@ -29,6 +30,8 @@ export function createArchive({ open, record, toggle }) {
   const reset = button(copy.reset, "text-button", () => {
     search.value = "";
     month.value = "";
+    selected.clear(); favorites=false;
+    if(info) moodArea.replaceChildren(moodPicker(info.moods,selected,render));
     load();
   });
   controls.append(monthLabelNode, reset);
@@ -40,7 +43,35 @@ export function createArchive({ open, record, toggle }) {
   dock.append(action);
   page.append(introduction, tools, results, dock);
 
-  const active = () => search.value.trim() !== "" || month.value !== "";
+  let view = new URL(location.href).searchParams.get("view") || "today";
+  let calendarView=false;
+  let favorites=view==="favorites";
+  const selected=new Set();
+  const nav=element("nav","book-tabs");
+  nav.setAttribute("aria-label","Разделы дневника");
+  const tabButtons=new Map();
+  function switchView(next) {
+    view=next;
+    const url=new URL(location.href);
+    url.searchParams.set("view", next);
+    history.replaceState(history.state,"",url);
+    setTools(next==="search" || next==="favorites");
+    if (all) render();
+  }
+  for (const [key,label] of [["today","Сегодня"],["journal","Дневник"],["reminders","Напоминания"]]) {
+    const tab=button(label,"book-tab",()=>switchView(key));
+    tabButtons.set(key,tab); nav.append(tab);
+  }
+  page.prepend(nav);
+  const modes=element("div","view-options");
+  const gridButton=button("Обложки","view-choice",()=>{calendarView=false;render();});
+  const calendarButton=button("Календарь","view-choice",()=>{calendarView=true;render();});
+  const starred=button("★ Избранное","view-choice",()=>{favorites=!favorites;render();});
+  modes.append(gridButton,calendarButton,starred);
+  tools.after(modes);
+  const moodArea=element("div"); tools.append(moodArea);
+  let info=null;
+  const active = () => search.value.trim() !== "" || month.value !== "" || selected.size>0 || favorites;
   let all = null;
   let matches = [];
   let serial = 0;
@@ -79,9 +110,29 @@ export function createArchive({ open, record, toggle }) {
   }
 
   function render() {
-    const days = matches.filter((day) => !month.value || day.date.startsWith(month.value));
+    const home=view==="today";
+    const reminders=view==="reminders";
+    const tab=home?"today":reminders?"reminders":"journal";
+    tabButtons.forEach((node,id)=>node.setAttribute("aria-pressed",String(id===tab)));
+    title.textContent=home?"Сегодня":reminders?"Напоминания":"Дневник";
+    modes.hidden=home || reminders;
+    if(home || reminders) tools.hidden=true;
+    count.hidden=reminders;
+    if(reminders) {results.replaceChildren(reminderCenter(open,demo));return;}
+    starred.setAttribute("aria-pressed",String(favorites));
+    calendarButton.setAttribute("aria-pressed",String(calendarView));
+    gridButton.setAttribute("aria-pressed",String(!calendarView));
+    const days = home ? all : matches.filter(day=>(!month.value || day.date.startsWith(month.value))
+      && (!favorites || day.favorite) && [...selected].every(label=>day.moods.includes(label)));
     count.textContent = copy.count(days.length);
     results.replaceChildren();
+    if(home && info?.anniversaries.length) {
+      const group=element("div","today-anniversaries");
+      group.append(element("h2","month-title","В этот день"));
+      for(const day of info.anniversaries) group.append(button(day.title,"day-link",()=>open(day.id)));
+      results.append(group);
+    }
+    if(days.length && calendarView && !home) {results.append(calendar(days,open)); return;}
     if (!days.length) {
       const empty = element("div", "empty");
       const filtered = active();
@@ -94,7 +145,7 @@ export function createArchive({ open, record, toggle }) {
     }
 
     let rest = days;
-    if (!active()) {
+    if (home || !active()) {
       const latest = element("section", "latest");
       latest.append(element("h2", "eyebrow", text.latest), card(days[0], true));
       results.append(latest);
@@ -129,6 +180,11 @@ export function createArchive({ open, record, toggle }) {
       results.replaceChildren(loading);
     }
     try {
+      if(!info) {
+        info=await api("/api/collection");
+        moodArea.replaceChildren(moodPicker(info.moods,selected,render));
+        if(info.draft) decorate(action,"edit","Продолжить черновик");
+      }
       if (!all || !query) {
         const days = await api("/api/days");
         if (request !== serial) return;
@@ -155,7 +211,11 @@ export function createArchive({ open, record, toggle }) {
     timer = setTimeout(load, 180);
   });
   month.addEventListener("change", () => { if (all) render(); });
-  toggle.addEventListener("click", () => setTools(tools.hidden));
+  toggle.addEventListener("click", () => {
+    if(view==="today" || view==="reminders") switchView("search");
+    else setTools(tools.hidden);
+  });
+  setTools(view==="search" || view==="favorites");
   load();
 
   return {
@@ -166,6 +226,7 @@ export function createArchive({ open, record, toggle }) {
       const index = (items) => items?.findIndex((item) => item.id === day.id) ?? -1;
       if (index(all) >= 0) all[index(all)] = day;
       if (index(matches) >= 0) matches[index(matches)] = day;
+      if (favorites || selected.size || calendarView) { if(all) render(); return; }
       const before = page.querySelector(`[data-memory="${CSS.escape(day.id)}"]`);
       if (before) before.replaceWith(card(day, before.classList.contains("latest-link")));
     },

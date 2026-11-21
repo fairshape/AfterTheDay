@@ -31,7 +31,19 @@ def make_score(profile: str) -> bytes:
                          + 0.12 * sin(phase * 3.013) * exp(-t * 7))
             samples[start_index + index] += volume * attack * tail * voice
 
-    if profile == "park":
+    if profile == "waiting":
+        for when, midi, level in ((.1,45,.10),(3.9,52,.08),(7.5,57,.075),(9.6,60,.13),
+                                  (12.2,55,.046),(16.6,53,.052),(20.4,45,.035)):
+            note(when, 4, midi, level)
+            note(when+.16, 3.1, midi+12, level*.21)
+    elif profile == "dawn":
+        times = (.25, 2.4, 4.1, 5.5, 6.65, 7.7, 8.58, 9.46, 10.29, 11.15, 11.98, 13.0, 14.1, 16.3, 19.1, 22.0)
+        for index, when in enumerate(times):
+            chord = chord_progression[(index//3)%len(chord_progression)]
+            note(when, 2.5, chord[index%4]+12, min(.16,.06+index*.012))
+            if 4 <= index <= 11:
+                note(when+.11, .24, 33, min(.23,index*.027), "kick")
+    elif profile == "park":
         for when, notes, level in (
             (0.0, (45, 57, 60), .085), (1.2, (64,), .095), (2.4, (59, 67), .10),
             (3.85, (48, 55, 64), .21), (4.95, (62, 67), .11), (6.25, (60, 64), .12),

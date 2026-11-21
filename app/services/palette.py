@@ -3,9 +3,9 @@ from math import dist
 
 from PIL import Image, ImageOps
 
-INK = "#17132b"
-PAPER = "#fff5e7"
-NEUTRAL_PALETTE = {"field": "#aa89ff", "shadow": "#2a2544", "accent": "#dbf565"}
+INK = "#201d2b"
+PAPER = "#f8f0dc"
+NEUTRAL_PALETTE = {"field": "#baa3f8", "shadow": "#2c2440", "accent": "#daef67"}
 
 
 def linear(value: float) -> float:

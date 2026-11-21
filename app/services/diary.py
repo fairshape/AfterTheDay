@@ -6,9 +6,13 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
+from app.infrastructure.audio.analysis import analyze_audio
 from app.infrastructure.db.models import Day, UserPreference
 from app.infrastructure.media.storage import MediaStore
+from app.services.anniversaries import MOODS, new_publication, tags
+from app.services.context import date_search, visible_place
 from app.services.art_direction import COLORS, STICKERS
+from app.services.narration import Narration, assets_for
 from app.services.music import PROFILES, track_link
 from app.services.scene import build_scene
 
@@ -16,7 +20,7 @@ MAX_PHOTOS = 10
 MAX_STORY = 12_000
 DEMO_OWNER = 0
 TRACK_STEPS = {"track_edit", "track_search", "track_link", "track_file"}
-DETAILS = {"date", "time", "place", "weather", "mood", "key_detail", "favorite", "cue"}
+DETAILS = {"date", "time", "place", "place_label", "weather", "mood", "key_detail", "favorite", "cue"}
 
 
 class DraftError(ValueError):
@@ -36,9 +40,10 @@ def missing_step(day: Day) -> str:
 
 
 class Diary:
-    def __init__(self, sessions, media: MediaStore, timezone_name: str):
+    def __init__(self, sessions, media: MediaStore, timezone_name: str, voice: Narration | None = None):
         self.sessions = sessions
         self.media = media
+        self.voice = voice
         self.timezone = ZoneInfo(timezone_name)
 
     def today(self, owner: int) -> date:
@@ -63,8 +68,9 @@ class Diary:
             day = session.scalar(statement)
             if day or not create:
                 return day
+            local_date = self.today(owner)
             day = Day(id=str(uuid4()), owner_id=owner, created_at=datetime.now(timezone.utc),
-                      memory_date=self.today(owner))
+                      memory_date=local_date, details={"_creation_date": local_date.isoformat()})
             session.add(day)
             try:
                 session.commit()
@@ -79,8 +85,11 @@ class Diary:
         with self.sessions() as session:
             days = list(session.scalars(statement))
         needle = query.casefold().strip()
+        labels = set(re.split(r"[,\s+]+", needle)) - {"", "и"}
+        if labels and labels <= MOODS.keys():
+            return [day for day in days if labels <= set(tags(day))]
         return [day for day in days if any(needle in field.casefold()
-                for field in (day.title, day.story, day.details.get("place", "")))] if needle else days
+                for field in (day.title, day.story, visible_place(day.details), *date_search(day.memory_date)))] if needle else days
 
     def get(self, owner: int, day_id: str, *, include_draft: bool = False) -> Day | None:
         with self.sessions() as session:
@@ -90,12 +99,16 @@ class Diary:
             return session.scalar(statement)
 
     def edit(self, day: Day, **changes) -> Day:
+        if day.story != changes.get("story", day.story):
+            changes.update(narration={}, voice_preview={})
         with self.sessions.begin() as session:
             result = session.execute(update(Day).where(Day.id == day.id, Day.owner_id == day.owner_id,
                        Day.saved_at.is_(None), Day.revision == day.revision)
                        .values(**changes, revision=day.revision + 1))
             if result.rowcount != 1:
                 raise DraftError("stale")
+            if changes.get("saved_at"):
+                new_publication(session, day)
         for key, value in changes.items():
             setattr(day, key, value)
         day.revision += 1
@@ -108,7 +121,17 @@ class Diary:
         value = raw.strip() if raw else ""
         if key == "date":
             try:
-                if not value or value.casefold() in {"today", "сегодня"}:
+                if not value:
+                    fallback = details.get("_creation_date")
+                    if fallback:
+                        memory_date = date.fromisoformat(fallback)
+                    else:
+                        with self.sessions() as session:
+                            preference = session.get(UserPreference, day.owner_id)
+                        local_zone = ZoneInfo(preference.timezone) if preference else self.timezone
+                        memory_date = day.created_at.replace(tzinfo=timezone.utc).astimezone(local_zone).date()
+                    details["event_date"] = None
+                elif value.casefold() in {"today", "сегодня"}:
                     memory_date = self.today(day.owner_id)
                 elif value.casefold() in {"yesterday", "вчера"}:
                     memory_date = self.today(day.owner_id) - timedelta(days=1)
@@ -117,6 +140,8 @@ class Diary:
                     memory_date = date.fromisoformat(f"{yyyy}-{mm}-{dd}")
                 else:
                     memory_date = date.fromisoformat(value)
+                if value:
+                    details["event_date"] = memory_date.isoformat()
             except ValueError as exc:
                 raise DraftError("date") from exc
         elif key == "cue":
@@ -133,9 +158,11 @@ class Diary:
                     raise DraftError("cue")
                 track["cue"] = cue
         else:
-            key = "favorite_photo" if key == "favorite" else key
+            key = {"favorite": "favorite_photo", "place_label": "place"}.get(key, key)
             if not value:
                 details.pop(key, None)
+                if key == "place":
+                    details.pop("coordinates", None)
             else:
                 if key == "time":
                     if not re.fullmatch(r"(?:[01]?\d|2[0-3]):[0-5]\d", value):
@@ -157,14 +184,27 @@ class Diary:
         photos = [*day.photos, photo]
         if message_id is not None:
             photos.sort(key=lambda item: item.get("message_id") or 0)
-        changes = {"photos": photos}
-        if caption.strip() and not day.story and not track_link(caption.strip()):
-            changes["story"] = caption
         try:
-            return self.edit(day, **changes)
+            return self.edit(day, photos=photos)
         except Exception:
             self.media.remove(day.id, asset["id"])
             raise
+
+    def accept_photo_caption(self, day: Day, asset_id: str) -> Day:
+        caption = next((photo["caption"] for photo in day.photos if photo["id"] == asset_id), "")
+        if day.story or not caption.strip() or track_link(caption.strip()):
+            raise DraftError("stale")
+        return self.edit(day, story=caption, step="")
+
+    def share_location(self, day: Day, latitude: float, longitude: float, label: str = "") -> Day:
+        if day.step != "place" or not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            raise DraftError("detail")
+        details = {**day.details, "coordinates": {"latitude": round(latitude, 5), "longitude": round(longitude, 5)}}
+        if label:
+            details["place"] = label[:120]
+        else:
+            details.pop("place", None)
+        return self.edit(day, details=details, step="" if label else "place_label")
 
     def remove_photo(self, day: Day, asset_id: str) -> Day:
         if not any(photo["id"] == asset_id for photo in day.photos):
@@ -172,7 +212,8 @@ class Diary:
         details = dict(day.details)
         if details.get("favorite_photo") == asset_id:
             details.pop("favorite_photo")
-        self.edit(day, photos=[photo for photo in day.photos if photo["id"] != asset_id], details=details)
+        self.edit(day, photos=[photo for photo in day.photos if photo["id"] != asset_id], details=details,
+                  cover_style={} if day.cover_style.get("photo") == asset_id else day.cover_style)
         self.media.remove(day.id, asset_id)
         return day
 
@@ -180,6 +221,10 @@ class Diary:
         old_asset = day.track.get("id")
         if data is not None:
             track = {**track, **self.media.ingest(day.id, data, "audio")}
+            if "profile" not in track:
+                analysis = analyze_audio(self.media.path(day.id, track["id"]), track["mime"])
+                if analysis and analysis.tempo and analysis.confidence >= .5:
+                    track.update(profile="rhythmic" if analysis.tempo >= 105 else "calm", signal="waveform")
         asset_id = track.get("id")
         try:
             self.edit(day, track=track, step="" if day.step in TRACK_STEPS | {"profile", "cue"} else day.step)
@@ -198,7 +243,7 @@ class Diary:
                 Day.saved_at.is_(None), Day.revision == day.revision))
             if result.rowcount != 1:
                 raise DraftError("stale")
-        for asset in [*day.photos, day.track]:
+        for asset in [*day.photos, day.track, *assets_for(day)]:
             if asset.get("id"):
                 self.media.remove(day.id, asset["id"])
 
@@ -221,8 +266,11 @@ class Diary:
                             even_comparison=owner == DEMO_OWNER and bool(comparison))
         alternate = build_scene(self.media, day.id, day.story, day.photos, comparison,
                                 day.details, base=scene) if comparison else {}
+        spoken = day.narration
+        if spoken and self.voice:
+            spoken = self.voice.build(day, scene, spoken["voice"], spoken["rate"], spoken)
         try:
-            return self.edit(day, title=scene["title"], scene=scene, comparison=alternate,
+            return self.edit(day, title=scene["title"], narration=spoken, scene=scene, comparison=alternate,
                              step="", scene_preview={}, saved_at=datetime.now(timezone.utc))
         except DraftError:
             existing = self.get(owner, day_id)
@@ -230,35 +278,63 @@ class Diary:
                 return existing
             raise
 
-    def set_cover(self, owner: int, day_id: str, style: dict) -> Day:
-        day = self.get(owner, day_id)
-        if not day:
+    def set_cover(self, owner: int, day_id: str, style: dict, moods: list[str] | None = None,
+                  *, choices: dict | None = None, voice: dict | None = None, revision: int | None = None,
+                  preview_token: str | None = None) -> Day:
+        day = self.get(owner, day_id, include_draft=True)
+        if not day or (not day.saved_at and day.scene_preview.get("revision") != day.revision):
             raise DraftError("missing_day")
-        if style and ((style["color"] == "auto" and not day.scene.get("palette", {}).get("field"))
-                      or style["color"] not in {*COLORS, "auto"} or style["sticker"] not in STICKERS
+        scene = day.scene if day.saved_at else day.scene_preview["scene"]
+        if moods is not None and set(moods) - MOODS.keys():
+            raise DraftError("invalid_cover")
+        if style and ((style["color"] == "auto" and not scene.get("palette", {}).get("field"))
+                      or style["color"] not in {*COLORS, "auto"} or style["sticker"] not in {*STICKERS, "none"}
                       or not any(photo["id"] == style["photo"] for photo in day.photos)):
             raise DraftError("invalid_cover")
+        conditions = [Day.id == day_id, Day.owner_id == owner, Day.revision == day.revision]
+        changes = {"cover_style": style}
+        if moods is not None:
+            changes["mood_tags"] = list(dict.fromkeys(moods))
+        if revision is not None:
+            if day.revision != revision:
+                raise DraftError("stale")
+            changes["revision"] = revision + 1
+            changes["voice_preview"] = {}
+            pending = day.scene_preview if not day.saved_at else {}
+            if pending:
+                if pending.get("token") != preview_token:
+                    raise DraftError("stale")
+                conditions.append(Day.scene_preview["token"].as_string() == preview_token)
+            if choices:
+                candidate = self.assemble_candidate(day, choices, voice)
+            else:
+                candidate = {**pending, "scene": scene, "narration": pending.get("narration", day.narration)}
+                if voice:
+                    if not self.voice:
+                        raise DraftError("speech_unavailable")
+                    candidate["narration"] = self.voice.build(day, scene, voice["voice"], voice["rate"], candidate["narration"])
+            changes["narration"] = candidate["narration"]
+            if pending:
+                changes["scene_preview"] = {**candidate, "revision": revision + 1, "token": uuid4().hex}
+            else:
+                changes["scene_preview"] = {}
+                if choices:
+                    changes.update(scene=candidate["scene"], details=candidate["details"], comparison=candidate["comparison"])
         with self.sessions.begin() as session:
-            result = session.execute(update(Day).where(Day.id == day_id, Day.owner_id == owner,
-                         Day.saved_at.is_not(None), Day.revision == day.revision)
-                         .values(cover_style=style, revision=day.revision + 1))
+            result = session.execute(update(Day).where(*conditions).values(**changes))
             if result.rowcount != 1:
                 raise DraftError("stale")
-        return self.get(owner, day_id)
+        return self.get(owner, day_id, include_draft=True)
 
     def first_saved_id(self, owner: int) -> str | None:
         with self.sessions() as session:
             return session.scalar(select(Day.id).where(Day.owner_id == owner, Day.saved_at.is_not(None))
                                   .order_by(Day.saved_at, Day.id).limit(1))
 
-    def preview_scene(self, owner: int, day_id: str, choices: dict) -> tuple[Day, dict]:
-        day = self.get(owner, day_id, include_draft=True)
-        if not day:
-            raise DraftError("missing_day")
-        if missing_step(day):
-            raise DraftError("incomplete")
-        details = dict(day.details)
-        track = dict(day.track)
+    def assemble_candidate(self, day: Day, choices: dict, voice: dict | None = None) -> dict:
+        pending = day.scene_preview if not day.saved_at and day.scene_preview.get("revision") == day.revision else {}
+        details = dict(pending.get("details", day.details))
+        track = dict(pending.get("track", day.track))
         if "photo" in choices:
             photo_id = choices["photo"]
             if photo_id and not any(photo["id"] == photo_id for photo in day.photos):
@@ -281,34 +357,61 @@ class Diary:
             details["key_detail"] = quote
 
         scene = build_scene(self.media, day.id, day.story, day.photos, track, details, base=day.scene or None,
-                            even_comparison=owner == DEMO_OWNER and bool(day.comparison))
+                            even_comparison=day.owner_id == DEMO_OWNER and bool(day.comparison))
         comparison = (build_scene(self.media, day.id, day.story, day.photos, day.comparison["track"],
                                   details, base=scene) if day.comparison else {})
-        candidate = {"token": uuid4().hex, "revision": day.revision, "scene": scene, "comparison": comparison,
-                     "details": details, "track": track}
+        spoken = pending.get("narration", day.narration)
+        if voice or spoken:
+            if not self.voice:
+                raise DraftError("speech_unavailable")
+            selected = voice or spoken
+            spoken = self.voice.build(day, scene, selected["voice"], selected["rate"], spoken)
+        return {"token": uuid4().hex, "revision": day.revision, "scene": scene, "comparison": comparison,
+                     "details": details, "track": track, "narration": spoken}
+
+    def preview_scene(self, owner: int, day_id: str, choices: dict) -> tuple[Day, dict]:
+        day = self.get(owner, day_id, include_draft=True)
+        if not day:
+            raise DraftError("missing_day")
+        if missing_step(day):
+            raise DraftError("incomplete")
+        if not choices and not day.saved_at and day.scene_preview.get("revision") == day.revision:
+            return day, day.scene_preview
+        candidate = self.assemble_candidate(day, choices)
         with self.sessions.begin() as session:
             result = session.execute(update(Day).where(Day.id == day_id, Day.owner_id == owner,
                          Day.revision == day.revision).values(scene_preview=candidate))
             if result.rowcount != 1:
                 raise DraftError("stale")
+        if self.voice:
+            day.scene_preview = candidate
+            self.voice.prune(day)
         return day, candidate
 
-    def commit_preview(self, owner: int, day_id: str, token: str) -> Day:
+    def commit_preview(self, owner: int, day_id: str, token: str) -> tuple[Day, bool]:
         day = self.get(owner, day_id, include_draft=True)
         if not day:
             raise DraftError("missing_day")
         pending = day.scene_preview
+        if day.saved_at and pending.get("publishedToken") == token:
+            return day, False
         if pending.get("token") != token or pending.get("revision") != day.revision:
             raise DraftError("stale")
         with self.sessions.begin() as session:
             result = session.execute(update(Day).where(Day.id == day_id, Day.owner_id == owner,
                          Day.revision == day.revision, Day.scene_preview["token"].as_string() == token)
-                         .values(scene=pending["scene"], comparison=pending["comparison"], scene_preview={},
+                         .values(scene=pending["scene"], comparison=pending["comparison"], scene_preview={"publishedToken": token},
                                  details=pending["details"], track=pending["track"], title=pending["scene"]["title"],
+                                 narration=pending.get("narration", day.narration), voice_preview={},
                                  saved_at=day.saved_at or datetime.now(timezone.utc), step="", revision=day.revision+1))
-            if result.rowcount != 1:
-                raise DraftError("stale")
-        return self.get(owner, day_id)
+            if result.rowcount == 1 and not day.saved_at:
+                new_publication(session, day)
+        saved = self.get(owner, day_id)
+        if result.rowcount != 1:
+            if saved and saved.scene_preview.get("publishedToken") == token:
+                return saved, False
+            raise DraftError("stale")
+        return saved, day.saved_at is None
 
     def pin(self, owner: int, day_id: str, photo_id: str | None, quote: str | None) -> Day:
         if self.get(owner, day_id) is None:
@@ -319,4 +422,5 @@ class Diary:
         if quote is not None:
             choices["quote"] = quote
         _, candidate = self.preview_scene(owner, day_id, choices)
-        return self.commit_preview(owner, day_id, candidate["token"])
+        saved, _ = self.commit_preview(owner, day_id, candidate["token"])
+        return saved
