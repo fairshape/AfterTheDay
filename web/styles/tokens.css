@@ -35,7 +35,7 @@
   --pad-right: max(env(safe-area-inset-right, 0px), var(--telegram-right, 0px));
   --pad-bottom: max(env(safe-area-inset-bottom, 0px), var(--telegram-bottom, 0px));
   --pad-left: max(env(safe-area-inset-left, 0px), var(--telegram-left, 0px));
-  --route-ms: 380ms;
+  --route-ms: 155ms;
   --reading: "Old Standard", Georgia, serif;
   --player-ms: 320ms;
   --sticker-ms: 280ms;

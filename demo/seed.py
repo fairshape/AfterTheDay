@@ -25,6 +25,9 @@ EXAMPLES = (
         "story": "Дорога после дождя. Окно автобуса запотело, а какао всё ещё обжигало ладони. Фонарь дрожал в луже у остановки.",
         "details": {"time": "вечер", "place": "Алматы", "weather": "после дождя", "mood": "тихая радость"},
         "style": {"color": "pool", "sticker": "rain"},
+        "composition": "rain",
+        "cue": 0.0,
+        "captions": ("Окно автобуса запотело", "Какао всё ещё обжигало ладони", "Фонарь дрожал в луже"),
         "closing": "Фонарь дрожал в луже",
     },
     {
@@ -72,13 +75,15 @@ def populate(diary: Diary) -> None:
         diary.edit(day, memory_date=memory_date, story=example["story"])
         for index in range(1, example.get("count", 3) + 1):
             photo = ROOT / "demo" / "photos" / f"{example['images']}-{index}.jpg"
-            diary.add_photo(day, photo.read_bytes(), "", index)
+            captions = example.get("captions", ())
+            diary.add_photo(day, photo.read_bytes(), captions[index - 1] if captions else "", index)
         if "favorite" in example:
             details["favorite_photo"] = day.photos[example["favorite"]]["id"]
         diary.edit(day, details=details)
         profile = example["profile"]
+        cue = {"cue": example["cue"]} if "cue" in example else {}
         diary.set_track(day, {"kind": "file", "title": example["track"], "profile": profile,
-                             "signal": "demo_score"}, make_score(example.get("composition", profile)))
+                             "signal": "demo_score", **cue}, make_score(example.get("composition", profile)))
         alternate = None
         alternate_title = example.get("alternate") or ("Огни на ходу" if example["images"] == "rain" else "")
         if alternate_title:

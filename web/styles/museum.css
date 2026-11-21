@@ -88,7 +88,7 @@ body {
   padding:22px 0 calc(65px + var(--pad-bottom));
 }
 
-.mono,.feature-type,.tile-info,.film-tag {
+.mono,.tile-info,.film-tag {
   font:650 .69rem/1.35 var(--body);
   letter-spacing:.13em;
   text-transform:uppercase;
@@ -106,60 +106,6 @@ body {
   color:var(--muted);
 }
 
-.feature {
-  position:relative;
-  isolation:isolate;
-  display:flex;
-  align-items:flex-end;
-  min-height:clamp(360px,33vw,520px);
-  overflow:hidden;
-  background:var(--night);
-  color:white;
-}
-
-.feature-photo {
-  z-index:-2;
-  position:absolute;
-  inset:0;
-}
-
-.feature-photo img {
-  height:100%;
-  width:100%;
-  object-fit:cover;
-  object-position:50% 50%;
-}
-
-.feature::after {
-  content:"";
-  z-index:-1;
-  position:absolute;
-  inset:0;
-  background:linear-gradient(90deg,#10150ff5 0%,#10150fba 28%,#10150f10 80%),linear-gradient(0deg,#11171160,transparent 50%);
-}
-
-.feature-copy {
-  padding:clamp(22px,4vw,64px);
-  max-width:70%;
-}
-
-.feature-type {
-  color:var(--accent);
-  letter-spacing:.2em;
-}
-
-.feature h1 {
-  font:400 clamp(3rem,6.5vw,6.8rem)/.94 var(--serif);
-  letter-spacing:-.06em;
-  margin:.28em 0 .18em;
-  text-wrap:balance;
-}
-
-.feature-meta {
-  opacity:.88;
-  font-size:.9rem;
-}
-
 .accent-link,.ink-link,.solid-btn {
   display:inline-flex;
   align-items:center;
@@ -175,10 +121,6 @@ body {
   border:0;
   border-radius:24px;
   font-weight:650;
-}
-
-.feature-copy .accent-link {
-  margin-top:24px;
 }
 
 .ink-link {
@@ -351,19 +293,6 @@ body {
   .museum {
     width:92%;
     padding-top:14px;
-  }
-  .feature {
-    min-height:400px;
-  }
-  .feature-copy {
-    max-width:100%;
-    padding:22px;
-  }
-  .feature h1 {
-    max-width:12ch;
-  }
-  .feature::after {
-    background:linear-gradient(0deg,#0e140ff2 0%,#11171185 45%,transparent 83%);
   }
   .tile-grid {
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -1026,3 +955,9 @@ body {
 .order-shot .mono,.order-thumb { grid-column:1/-1; }
 .order-thumb { aspect-ratio:1.35; }
 .order-shot .minor { padding:4px; }
+
+.delete-action { margin-block: 12px; }
+.delete-confirmation { padding: 14px; border: 1px solid var(--line); }
+.delete-confirmation .actions { margin-block: 10px; }
+.delete-confirmation .delete-submit { background: #943c39; border-color: #943c39; color: white; }
+.delete-confirmation [role="status"]:empty { display: none; }

@@ -11,6 +11,19 @@ const main = document.querySelector("#journal");
 const query = new URLSearchParams(location.search);
 document.body.dataset.room = query.has("day") ? "day" : query.get("view") || "home";
 let tg, overlay, previousGallery, opening = false;
+const warmDays = new Map();
+
+function warmDay(id) {
+  const current = warmDays.get(id);
+  if (current && current.expires > performance.now()) return current.request;
+  const request = api("/api/days/" + encodeURIComponent(id));
+  const entry = {request, expires: performance.now() + 15000};
+  warmDays.delete(id);
+  warmDays.set(id, entry);
+  if (warmDays.size > 8) warmDays.delete(warmDays.keys().next().value);
+  request.catch(() => { if (warmDays.get(id) === entry) warmDays.delete(id); });
+  return request;
+}
 function back() {
   if (overlay)
     overlay.close();
@@ -36,19 +49,21 @@ window.addEventListener("popstate", () => {
 async function showDay(id, route, source) {
   if(route.has("preview"))main.replaceChildren(el("p","loading","Собираем сцену из твоих фотографий, текста и музыки…"));
   const path = "/api/days/" + encodeURIComponent(id);
-  const day = route.has("preview") ? await api(path + "/scene/preview", {}) : await api(path);
+  const day = route.has("preview") ? await api(path + "/scene/preview", {}) : await warmDay(id);
   const folder = createFolder(day, {
     back,
     telegram: tg,
     overlay: showOverlay,
     updateArchive: () => {
+      warmDays.delete(id);
       if (previousGallery)
         previousGallery.changed = true;
     },
     published: () => location.replace(dayURL(id)),
     open: (memory, scene, assets, from) =>
         showOverlay(close => openPlayer(memory, scene, assets, close, {from, telegram: tg}))
-  });
+  }, source?.naturalWidth && day.cover === source.dataset.original
+    ? source.src : "");
   await transitionCover(source, () => {
     document.body.dataset.room="day";
     main.replaceChildren(folder.article);
@@ -77,8 +92,9 @@ main.addEventListener("click", async event => {
     return;
   opening = true;
   const id = target.searchParams.get("day"),
-        source = anchor.querySelector("img") || anchor.closest(".feature")?.querySelector("img");
-  previousGallery = {node: main.firstElementChild, scroll: scrollY, source};
+        source = anchor.querySelector("img") || anchor.closest(".memory-shelf")?.querySelector("[aria-current] img");
+  const rail = main.querySelector(".shelf-rail");
+  previousGallery = {node: main.firstElementChild, scroll: scrollY, source, rail, railScroll: rail?.scrollLeft};
   try {
     history.pushState({galleryOrigin: true}, "", target);
     await showDay(id, target.searchParams, source);
@@ -109,6 +125,7 @@ window.addEventListener("popstate", () => {
   transitionCover(main.querySelector(".cover-photo img"), () => {
     document.body.dataset.room=new URLSearchParams(location.search).get("view")||"home";
     main.replaceChildren(gallery.node);
+    if (gallery.rail) gallery.rail.scrollLeft = gallery.railScroll;
     scrollTo(0, gallery.scroll);
     return gallery.source;
   }).catch(() => location.reload());
@@ -116,6 +133,9 @@ window.addEventListener("popstate", () => {
     tg?.BackButton?.hide();
 });
 async function boot() {
+  const id = query.get("day"), view = query.get("view") || "home";
+  const extraScreen = !id && !["home", "today", "settings", "reminders"].includes(view)
+    ? import("./screens.js") : null;
   const [mode] = await Promise.all([api("/api/mode"), loadArt()]);
   if (mode.demo)
     await api("/api/demo/start", {});
@@ -145,8 +165,12 @@ async function boot() {
     tg.onEvent?.("safeAreaChanged", insets);
     tg.onEvent?.("contentSafeAreaChanged", insets);
   }
-  await enableMediaStreaming();
-  const id = query.get("day"), view = query.get("view") || "home";
+  const media = enableMediaStreaming().catch(() => {});
+  const needsDays = !id && !["create", "settings", "reminders"].includes(view);
+  const needsContext = needsDays && !["welcome", "studio"].includes(view);
+  const daysRequest = needsDays ? api("/api/days") : Promise.resolve([]);
+  const contextRequest = needsContext ? api("/api/collection") : Promise.resolve({});
+  if (id && !query.has("preview")) warmDay(id);
   for(const anchor of document.querySelectorAll(".museum-header a")){
     const current=new URL(anchor.href).searchParams.get("view")||"home";
     if(!id&&view===current)anchor.setAttribute("aria-current","page");
@@ -155,12 +179,13 @@ async function boot() {
     if (document.referrer.startsWith(location.origin + "/") &&
         !new URL(document.referrer).searchParams.has("day"))
       history.replaceState({...history.state, galleryOrigin: true}, "", location.href);
+    await media;
     await showDay(id, query);
     return;
   }
-  const [days, context] = await Promise.all([api("/api/days"), api("/api/collection")]);
+  const [days, context] = await Promise.all([daysRequest, contextRequest, media]);
   if (view === "home" || view === "today")
-    main.replaceChildren(dashboard(days, context, mode.demo));
+    main.replaceChildren(dashboard(days, context, warmDay));
   else if (view === "settings" || view === "reminders") {
     const panel = el("section", "profile-panel");
     panel.append(
@@ -180,7 +205,7 @@ async function boot() {
     panel.append(link("Знакомство с Memory Experience ↗","/?view=welcome"));
     main.replaceChildren(panel);
   } else {
-    const {screen} = await import("./screens.js");
+    const {screen} = await extraScreen;
     main.replaceChildren(await screen(view, {days, context, mode, query, tg}));
   }
 }

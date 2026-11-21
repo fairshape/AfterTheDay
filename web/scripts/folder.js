@@ -1,4 +1,5 @@
 import { remixPanel } from "./remix.js";
+import {deleteAction} from "./delete-action.js";
 import { dayCollection } from "./collection.js";
 import { memoryCover } from "./art.js";
 import { api, asset } from "./client.js";
@@ -284,10 +285,13 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     metadata.append(button("Сохранить сведения","solid-btn",async()=>{
       try{await api("/api/days/"+day.id+"/metadata",{revision:day.revision,title:inputs.title.value,date:inputs.date.value,reflection:inputs.reflection.value});location.reload();}
       catch{notice.textContent="Проверь название и дату. Если запись менялась, обнови страницу.";}
-    }),button("Удалить запись","minor",async()=>{
-      if(!window.confirm("Удалить этот день вместе с фотографиями и аудио?"))return;
-      try{await api("/api/days/"+day.id+"/delete",{revision:day.revision});location.replace("/?view=archive");}
-      catch(e){notice.textContent=e.message==="film_uses_day"?"Этот день входит в сохранённый Life Replay. Сначала удали фильм в монтажной.":"Не удалось удалить. Обнови запись и повтори.";}
+    }), deleteAction({
+      label: "Удалить запись",
+      question: "Удалить «" + day.title + "»?",
+      details: "Из дневника исчезнут запись, её фотографии, аудио и напоминания.",
+      path: "/api/days/" + day.id + "/delete",
+      payload: () => ({revision: day.revision}),
+      returnUrl: "/?view=archive",
     }),notice);
     reading.append(remixPanel(day,open),film,metadata);
   }

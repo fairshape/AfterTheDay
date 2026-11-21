@@ -3,6 +3,7 @@ import {api, asset} from "./client.js";
 import {calendar, moodPicker} from "./collection.js";
 import {button, captionedImage, dateLabel, element as el} from "./dom.js";
 import {icon} from "./icons.js";
+import {previewPhoto} from "./memory-shelf.js";
 import {life} from "./life.js";
 import {dayURL, heading, link, memoryTile, worlds} from "./museum.js";
 
@@ -17,7 +18,7 @@ export async function screen(view, {days, context, query}) {
       el("p","original-story","Сохрани фразу, снимок и песню. Фотографии зададут свет, музыка — ритм, а твои слова останутся в кадре."),
       link("Начать запись","/?view=create","accent-link"));
     welcome.append(intro);
-    if(days[0])welcome.append(captionedImage(days[0].cover,"welcome-image",asset,days[0].title));
+    if(days[0])welcome.append(captionedImage(previewPhoto(days[0].cover),"welcome-image",asset,days[0].title));
     welcome.append(link("Смотреть дневник","/?view=archive"));return welcome;
   }
   if (view === "studio") {
@@ -28,7 +29,7 @@ export async function screen(view, {days, context, query}) {
     for(const day of days){
       const item=el("article","studio-entry"), info=el("div");
       info.append(el("small","mono",dateLabel(day.date,true)),el("h2","",day.title),el("p","tile-info",day.trackLabel));
-      item.append(captionedImage(day.cover,"studio-thumb",asset,day.title),info,link("В монтажную ↗",dayURL(day.id)+"&studio=1&from=gallery","minor"));
+      item.append(captionedImage(previewPhoto(day.cover),"studio-thumb",asset,day.title),info,link("В монтажную ↗",dayURL(day.id)+"&studio=1&from=gallery","minor"));
       studio.append(item);
     }
     return studio;

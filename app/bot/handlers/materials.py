@@ -11,8 +11,6 @@ from aiogram.types import Audio, Document, Message, PhotoSize, Voice
 
 from app.bot.copy import ERRORS, PROMPTS, STATUS
 from app.bot.handlers.draft import summary
-from app.bot.handlers.songs import show_results
-from app.services.song_search import SongSearch
 from app.bot.handlers.start import send_home
 from app.infrastructure.media.storage import AUDIO_LIMIT, PHOTO_LIMIT
 from app.infrastructure.db.models import Day
@@ -122,7 +120,7 @@ async def receive_text(diary: Diary, day: Day, original: str) -> str:
         raise DraftError("link")
     elif day.step in DETAILS - {"favorite"}:
         await asyncio.to_thread(diary.update_detail, day, day.step, value)
-    elif not day.story or day.step == "story_edit":
+    elif (not day.story and day.step not in TRACK_STEPS) or day.step == "story_edit":
         if not value or len(original) > MAX_STORY:
             raise DraftError("story_size")
         await asyncio.to_thread(diary.edit, day, story=original, step="" if day.step == "story_edit" else day.step)
@@ -134,8 +132,7 @@ async def receive_text(diary: Diary, day: Day, original: str) -> str:
 
 
 @router.message()
-async def material(message: Message, bot: Bot, diary: Diary, settings: Settings, albums: AlbumReplies,
-                   song_search: SongSearch | None = None) -> None:
+async def material(message: Message, bot: Bot, diary: Diary, settings: Settings, albums: AlbumReplies) -> None:
     owner = message.from_user.id
     day = await asyncio.to_thread(diary.draft, owner)
     if not day:
@@ -157,11 +154,6 @@ async def material(message: Message, bot: Bot, diary: Diary, settings: Settings,
             else:
                 notice = PROMPTS["location"]
         elif message.text and not message.text.startswith("/"):
-            query = message.text.strip()
-            if (day.step == "track_search" and song_search
-                    and not query.lower().startswith(("http:", "https:", "www."))):
-                await show_results(message, day, query, song_search)
-                return
             notice = await receive_text(diary, day, message.text)
         else:
             notice = PROMPTS["unsupported"]

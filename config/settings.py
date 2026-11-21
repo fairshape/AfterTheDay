@@ -24,8 +24,6 @@ class Settings(BaseSettings):
     voice_one_model: str = Field(default="ru_RU-irina-medium", pattern=r"^[a-zA-Z0-9_-]+$")
     voice_two_model: str = Field(default="ru_RU-denis-medium", pattern=r"^[a-zA-Z0-9_-]+$")
     speech_timeout: float = Field(default=75, gt=0, le=180)
-    music_storefront: str = Field(default="KZ", pattern=r"^[A-Z]{2}$")
-    catalogue_timeout: float = Field(default=4, gt=0, le=10)
     app_timezone: str = "Asia/Almaty"
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)

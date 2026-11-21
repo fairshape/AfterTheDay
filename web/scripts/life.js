@@ -1,3 +1,4 @@
+import {deleteAction} from "./delete-action.js";
 import {api, asset} from "./client.js";
 import {button, captionedImage, dateLabel, element as el} from "./dom.js";
 import {prepareFilm} from "./life-player.js";
@@ -194,15 +195,13 @@ export async function life(days, query, today) {
         el("p", "notice", film.period.map(d => dateLabel(d, true)).join(" — ")),
         button("▶ Смотреть фильм", "solid-btn", start),
         link("Редактировать фильм", "/?view=life&edit=" + film.id), link("Новый монтаж", "/?view=life"),
-        button("Удалить фильм", "minor", async () => {
-          if (!window.confirm("Удалить этот монтаж? Исходные дни останутся в дневнике."))
-            return;
-          try {
-            await api("/api/films/" + film.id + "/delete", {});
-            location.assign("/?view=life");
-          } catch {
-            status.textContent = "Не удалось удалить фильм.";
-          }
+        deleteAction({
+          label: "Удалить фильм",
+          question: "Удалить «" + film.title + "»?",
+          details: "Исходные дни останутся в дневнике.",
+          path: "/api/films/" + film.id + "/delete",
+          payload: () => ({}),
+          returnUrl: "/?view=life",
         }), status);
     return root;
   }

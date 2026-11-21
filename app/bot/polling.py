@@ -8,9 +8,7 @@ from aiogram.types import BotCommand, MenuButtonWebApp, WebAppInfo
 from app.bot.copy import COMMANDS
 from app.bot.handlers import collection, draft, materials, songs, start
 from app.bot.handlers.materials import AlbumReplies
-from app.infrastructure.catalogue.itunes import ITunesCatalogue
 from app.services.diary import Diary
-from app.services.song_search import SongSearch
 from config.settings import Settings
 
 
@@ -45,8 +43,7 @@ async def poll(settings: Settings, diary: Diary, shutdown: asyncio.Event,
             await dispatcher.start_polling(bot, handle_signals=False, close_bot_session=False,
                                            tasks_shutdown_timeout=8,
                                            allowed_updates=dispatcher.resolve_used_update_types(),
-                                           diary=diary, settings=settings, albums=albums,
-                                           song_search=SongSearch(ITunesCatalogue(settings.music_storefront, settings.catalogue_timeout)))
+                                           diary=diary, settings=settings, albums=albums)
         finally:
             if stopper:
                 stopper.cancel()

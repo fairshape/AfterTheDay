@@ -2,6 +2,7 @@
 from array import array
 from io import BytesIO
 from math import exp, pi, sin
+from random import Random
 import sys
 import wave
 
@@ -31,7 +32,21 @@ def make_score(profile: str) -> bytes:
                          + 0.12 * sin(phase * 3.013) * exp(-t * 7))
             samples[start_index + index] += volume * attack * tail * voice
 
-    if profile == "waiting":
+    if profile == "rain":
+        # Synthetic road texture forms one continuous space across the photographs.
+        rng = Random(19)
+        low = 0.0
+        for index in range(len(samples)):
+            t = index / SAMPLE_RATE
+            noise = rng.uniform(-1, 1)
+            low += .035 * (noise - low)
+            envelope = min(t / .65, 1) * min((DURATION - t) / 2, 1)
+            passing = exp(-((t - 4.6) / 2.1) ** 2)
+            samples[index] += envelope * (low * (.12 + .32 * passing) + (noise - low) * .009)
+        for when, midi, level in ((2.3, 52, .13), (5.05, 57, .18), (5.09, 64, .07),
+                                  (8.55, 55, .12), (10.9, 48, .075)):
+            note(when, 4, midi, level)
+    elif profile == "waiting":
         for when, midi, level in ((.1,45,.10),(3.9,52,.08),(7.5,57,.075),(9.6,60,.13),
                                   (12.2,55,.046),(16.6,53,.052),(20.4,45,.035)):
             note(when, 4, midi, level)

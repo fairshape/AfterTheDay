@@ -88,8 +88,11 @@ class FilmLibraryTests(unittest.TestCase):
         self.diary.add_photo(draft, (ROOT / "demo/photos/park-2.jpg").read_bytes(), "")
         asset = draft.photos[0]["id"]
         self.assertEqual(media(draft.id, asset, 110, self.diary).media_type, "image/jpeg")
+        self.assertEqual(media(draft.id, asset, 110, self.diary, preview=True).media_type, "image/webp")
         with self.assertRaises(HTTPException):
             media(draft.id, asset, 111, self.diary)
+        with self.assertRaises(HTTPException):
+            media(draft.id, asset, 111, self.diary, preview=True)
         with self.assertRaises(HTTPException):
             current(self.diary, 111, draft.id, draft.revision)
 

@@ -1,0 +1,140 @@
+body { font-weight: 530; }
+.identity-light { font-weight: 560; }
+.museum :is(.page-title, .tile-grid h3, .studio-entry h2, .section-title h2, .reading-title) {
+  font-family: var(--display);
+  font-weight: 680;
+  letter-spacing: -.04em;
+}
+.original-story { font-family: var(--body); font-weight: 500; line-height: 1.65; }
+
+body:is([data-room="home"], [data-room="today"]) {
+  --cinema-wall: #111521;
+  --cinema-mat: #1b2333;
+  --cinema-rule: #59647a;
+  --cinema-type: #f6f7ff;
+  --cinema-note: #d3d9e8;
+  --cinema-signal: #d7e7ff;
+  background: var(--cinema-wall);
+}
+body:is([data-room="home"], [data-room="today"]) .museum-header {
+  background: #151a28;
+  border-color: #30394d;
+}
+.memory-shelf {
+  --shelf-pad: clamp(16px, 4.5vw, 56px);
+  --shelf-gap: clamp(10px, 1.8vw, 22px);
+  --shelf-tile: clamp(114px, 24vw, 164px);
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: clamp(340px, 39vw, 500px);
+  background: #242d41;
+  border: 1px solid #c0cff642;
+  border-radius: 12px;
+  color: #fcfcff;
+}
+.shelf-backdrop, .shelf-backdrop::after, .shelf-backdrop img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.shelf-backdrop { z-index: -1; overflow: hidden; }
+.shelf-backdrop img {
+  object-fit: cover;
+  object-position: center 44%;
+  opacity: 0;
+  filter: blur(22px);
+  transform: scale(1.12);
+  transition: opacity 470ms cubic-bezier(.3,.15,.2,1);
+}
+.shelf-backdrop img.is-visible { opacity: 1; }
+.shelf-backdrop::after {
+  content: "";
+  background: linear-gradient(180deg, #0f142156, #141b3170 40%, #0e1325e8 100%);
+}
+.shelf-deck { width: 100%; min-width: 0; padding: 18px var(--shelf-pad) clamp(18px, 3.7vw, 42px); }
+.shelf-bar, .shelf-controls, .shelf-info { display: flex; align-items: center; }
+.shelf-bar, .shelf-info { justify-content: space-between; gap: 14px; }
+.shelf-label { margin: 0; font-weight: 690; font-size: .94rem; }
+.shelf-controls { gap: 6px; }
+.shelf-counter { min-width: 46px; text-align: center; font-size: .79rem; font-variant-numeric: tabular-nums; }
+.shelf-arrow {
+  width: 44px;
+  height: 44px;
+  background: #111825a8;
+  border: 1px solid #e0e9ff70;
+  border-radius: 50%;
+  color: #f8faff;
+  font-size: 1.22rem;
+}
+.shelf-arrow:hover:not(:disabled) { background: #374665; }
+.shelf-arrow:disabled { opacity: .42; cursor: default; }
+.shelf-rail {
+  position: relative;
+  display: flex;
+  gap: var(--shelf-gap);
+  margin-inline: calc(-1 * var(--shelf-pad));
+  padding: 13px var(--shelf-pad) 18px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--shelf-pad);
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+.shelf-rail::-webkit-scrollbar { display: none; }
+.shelf-rail::after { content: ""; flex: 0 0 max(0px, calc(100% - var(--shelf-tile) - var(--shelf-gap))); }
+.shelf-card {
+  position: relative;
+  flex: 0 0 var(--shelf-tile);
+  min-width: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 2px solid #e6ecff29;
+  border-radius: 12px;
+  scroll-snap-align: start;
+  opacity: .77;
+  transform: scale(.93);
+  transform-origin: center left;
+  background: #252d40;
+  transition: transform 360ms var(--ease), border-color 250ms ease, opacity 250ms ease, box-shadow 250ms ease;
+}
+.shelf-card:hover { opacity: 1; }
+.shelf-card[aria-current="true"] {
+  opacity: 1;
+  transform: scale(1);
+  border-color: #f1f5ff;
+  box-shadow: 0 4px 14px #080d22a6;
+}
+.shelf-print, .shelf-print img { width: 100%; height: 100%; }
+.shelf-print img { object-fit: cover; }
+.shelf-caption { min-width: 0; }
+.shelf-title { margin: 0; font: 700 clamp(1.7rem, 4.65vw, 3.85rem)/1.04 var(--display); letter-spacing: -.055em; overflow-wrap: anywhere; }
+.shelf-meta { margin: 7px 0 0; font-size: .84rem; color: #dce6f8; }
+.shelf-info .accent-link { flex-shrink: 0; color: #141d30; background: #e4edff; border-radius: 32px; margin: 0; }
+.shelf-empty { padding: clamp(20px, 6vw, 74px); border: 1px solid var(--cinema-rule); }
+.shelf-empty .ink-link { margin-left: 14px; }
+@media (max-width: 620px) {
+  .memory-shelf { min-height: 360px; }
+  .shelf-info { align-items: flex-start; flex-direction: column; min-height: 138px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shelf-backdrop img, .shelf-card { transition: none; }
+}
+
+@media (max-width: 390px) {
+  .museum-header {
+    column-gap: 10px;
+  }
+  .museum-header .identity {
+    font-size: .83rem;
+  }
+  .museum-header .create-link {
+    padding-inline: 9px;
+  }
+  .museum-header .profile-link {
+    font-size: 1.45rem;
+  }
+}

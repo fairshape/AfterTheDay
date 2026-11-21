@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.infrastructure.audio.speech import SpeechUnavailable
 from app.infrastructure.db.models import Day, UserPreference
+from app.infrastructure.media.previews import photo_preview
 from app.services.studio import StudioChoices
 from app.services.emotion import memory_art
 from app.services.art_direction import original_cover, suggest_color
@@ -303,7 +304,8 @@ def pin(day_id: UUID, body: PinRequest, owner: int = Depends(owner_for), diary: 
 
 
 @router.get("/days/{day_id}/media/{asset_id}")
-def media(day_id: UUID, asset_id: str, owner: int = Depends(media_owner), diary: Diary = Depends(diary_for)):
+def media(day_id: UUID, asset_id: str, owner: int = Depends(media_owner), diary: Diary = Depends(diary_for),
+          *, preview: bool = False):
     day = diary.get(owner, str(day_id), include_draft=True)
     if day is None:
         raise HTTPException(404, "asset")
@@ -314,4 +316,10 @@ def media(day_id: UUID, asset_id: str, owner: int = Depends(media_owner), diary:
     path = diary.media.path(str(day_id), asset_id)
     if not path.is_file():
         raise HTTPException(404, "asset")
+    if preview and match["mime"].startswith("image/"):
+        try:
+            return Response(photo_preview(path, path.stat().st_mtime_ns),
+                            media_type="image/webp", headers=NO_CACHE)
+        except (OSError, ValueError):
+            raise HTTPException(404, "asset")
     return FileResponse(path, media_type=match["mime"], headers=NO_CACHE)

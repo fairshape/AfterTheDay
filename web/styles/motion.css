@@ -6,12 +6,12 @@
 ::view-transition-image-pair(memory-photo) { isolation: isolate; }
 ::view-transition-old(memory-photo),
 ::view-transition-new(memory-photo) { height: 100%; object-fit: fill; }
-::view-transition-old(root) { animation: 230ms ease both page-out; }
-::view-transition-new(root) { animation: 270ms var(--ease) 85ms both page-in; }
+::view-transition-old(root) { animation: 105ms ease both page-out; }
+::view-transition-new(root) { animation: 150ms var(--ease) both page-in; }
 
 .cover-hero .cover-sticker { animation: sticker-land var(--sticker-ms) var(--ease) var(--reveal-ms) both; }
-.cover-hero .cover-caption { animation: page-in 260ms var(--ease) var(--reveal-ms) both; }
-.folder-actions { animation: page-in 265ms var(--ease) 180ms both; }
+.cover-hero .cover-caption { animation: page-in 155ms var(--ease) 25ms both; }
+.folder-actions { animation: page-in 155ms var(--ease) 35ms both; }
 
 .sheet[open] { animation: sheet-up var(--sheet-ms) var(--ease) both; }
 .sheet[open]::backdrop { animation: page-in var(--sheet-ms) ease both; }

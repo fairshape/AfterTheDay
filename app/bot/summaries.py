@@ -24,6 +24,8 @@ async def show_draft(message: Message, day: Day, notice: str = "", *, timezone_y
         STATUS["track_linked" if song_url else "track_added" if day.track else "no_track"],
     ]
     step = day.step or missing_step(day) or "ready"
+    if step == "track_search":  # Resume drafts created before catalogue removal.
+        step = "track"
     rows = []
     if step == "story":
         caption = next((photo for photo in day.photos if photo["caption"].strip()

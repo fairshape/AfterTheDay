@@ -1,5 +1,5 @@
 import {art,stickerImage} from "./art.js";
-import {icon} from "./icons.js";
+import {memoryShelf, previewPhoto} from "./memory-shelf.js";
 import {asset} from "./client.js";
 import {captionedImage, dateLabel, element as el} from "./dom.js";
 
@@ -26,7 +26,8 @@ export const worlds = {
 export function memoryTile(day) {
   const a = link("", dayURL(day.id) + "&from=gallery", "museum-tile");
   a.dataset.memory = day.id;
-  const photo = captionedImage(day.cover, "tile-image", asset, day.title);
+  const photo = captionedImage(previewPhoto(day.cover), "tile-image", asset, day.title);
+  photo.querySelector("img").dataset.original = day.cover;
   const tag = day.emotion?.primary;
   if (tag) {
     const label = el("span", "film-tag", worlds[tag][0]);
@@ -41,62 +42,18 @@ export function memoryTile(day) {
       el("p", "tile-info", day.trackLabel || "Day Replay"));
   return a;
 }
-export function dashboard(days, context, demo) {
+export function dashboard(days, context, warmDay) {
   const root = el("div", "gallery-home");
-  const intro = el("div", "intro-line");
-  intro.append(
-      el("span", "mono", demo ? "ДЕМОНСТРАЦИОННАЯ КОЛЛЕКЦИЯ" : "ЛИЧНАЯ КОЛЛЕКЦИЯ"),
-      el("span", "mono", String(days.length).padStart(2, "0") + " " + ({one:"ЗАПИСЬ",few:"ЗАПИСИ"}[new Intl.PluralRules("ru").select(days.length)]||"ЗАПИСЕЙ")));
-  root.append(intro);
-  const hero = el("section", "feature");
-  const latest = days[0];
-  const still=latest?captionedImage(latest.cover,"feature-photo",asset,latest.title):null;
-  if(still)hero.append(still);
-  const content = el("div", "feature-copy");
-  content.append(
-      el("span", "feature-type", "●   DAY REPLAY"),
-      el("h1", "", latest?.title || "Твоя первая история"));
-  content.append(
-      el("p", "feature-meta",
-         latest ? dateLabel(latest.date, true) + (latest.place ? "   /   " + latest.place : "") :
-                  "Сохрани слова, фото и музыку своего дня."));
-  content.append(link(
-      latest ? "▶   Пережить день" : "＋   Создать запись",
-      latest ? dayURL(latest.id) + "&play=1&from=gallery" : "/?view=create", "accent-link"));
-  if(latest?.focus) content.querySelector("h1").after(el("p","hero-quote","«"+latest.focus+"»"));
-  if(latest){
-    const facts=el("div","hero-facts");
-    facts.append(icon("music"),el("span","",latest.trackLabel||"Музыка дня"));
-    if(latest.duration)facts.append(el("span","film-runtime",Math.round(latest.duration)+" с"));
-    content.append(facts);
-    const rail=el("div","still-rail");
-    let revision=0;
-    const images=[...new Set([latest.cover,...(latest.stills||[])])].slice(0,3);
-    if(images.length>1){
-      for(const [index,path] of images.entries()){
-        const pick=el("button","still-choice");pick.type="button";pick.setAttribute("aria-label","Показать кадр "+(index+1));
-        pick.setAttribute("aria-pressed",String(!index));pick.append(captionedImage(path,"still-sample",asset,""));
-        pick.onclick=async()=>{
-          const mark=++revision,img=still.querySelector("img");if(!img)return;
-          try{const src=await asset(path);if(mark!==revision)return;img.src=src;
-            for(const btn of rail.children)btn.setAttribute("aria-pressed",String(btn===pick));
-          }catch{img.alt="Кадр недоступен.";}
-        };rail.append(pick);
-      }
-      hero.append(rail);
-    }
+  if (days.length) {
+    root.append(memoryShelf(days, warmDay));
+  } else {
+    const empty = el("section", "shelf-empty");
+    empty.append(el("h1", "", "Твоя первая история"),
+      el("p", "", "Сохрани слова, фото и музыку своего дня."),
+      link("Создать запись", "/?view=create", "accent-link"),
+      link("Как устроен дневник", "/?view=welcome"));
+    root.append(empty);
   }
-  hero.append(content);
-  root.append(hero);
-  const section = el("section", "moments");
-  const row = heading("Недавние воспоминания");
-  row.append(link("Весь архив ↗", "/?view=archive"));
-  section.append(row);
-  const grid = el("div", "tile-grid");
-  (days.length > 3 ? days.slice(1, 4) : days.slice(0, 3)).forEach(d => grid.append(memoryTile(d)));
-  section.append(grid);
-  if(days.length)root.append(section);
-  else root.append(link("Как устроен дневник ↗","/?view=welcome"));
   const lower = el("div", "museum-lower");
   const life = link("", "/?view=life", "life-poster");
   life.append(

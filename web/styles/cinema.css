@@ -14,21 +14,6 @@ body[data-room="home"], body[data-room="today"] {
   color: var(--cinema-type);
 }
 .gallery-home { --ink: var(--cinema-type); --muted: var(--cinema-note); --line: var(--cinema-rule); }
-.gallery-home .intro-line { margin: 2px 0 16px; letter-spacing: .15em; }
-.feature { border: 1px solid var(--cinema-rule); background: var(--cinema-mat); }
-.feature-copy { z-index: 1; }
-.feature .accent-link { background: var(--cinema-signal); color: #172010; }
-.hero-quote { font: italic clamp(1.05rem,1.6vw,1.45rem)/1.35 var(--serif); max-width: 36ch; color: #e8ebdf; margin: 12px 0; }
-.hero-facts { display: flex; align-items: center; gap: 8px; margin-top: 18px; color: #d4d9ce; font-size: .78rem; }
-.hero-facts svg { width: 15px; height: 15px; }
-.film-runtime { border-left: 1px solid #777f70; padding-left: 9px; font-variant-numeric: tabular-nums; }
-.still-rail { position: absolute; right: 2%; bottom: 4%; z-index: 2; display:flex; gap:4px; padding:5px; background:#171c17da; }
-.still-choice { border: 1px solid transparent; background: transparent; padding: 2px; width: clamp(49px,6vw,84px); min-height:42px; }
-.still-choice[aria-pressed="true"] { border-color:var(--cinema-signal); }
-.still-sample { height: 100%; aspect-ratio:1.65; }
-.still-choice:focus-visible { outline-color:var(--cinema-signal); }
-.gallery-home .moments { margin-top: 30px; border-top:1px solid var(--cinema-rule); }
-.gallery-home .section-title { margin-top:16px; }
 .gallery-home .ink-link { color: var(--cinema-type); border-bottom:1px solid var(--cinema-rule); }
 .gallery-home .film-tag { color:#191b17; }
 .gallery-home .life-poster { background:var(--cinema-signal); color:#1b2118; }
@@ -36,21 +21,6 @@ body[data-room="home"], body[data-room="today"] {
 .gallery-home .world-link { border-bottom:1px solid var(--cinema-rule); }
 .gallery-home .museum-lower { border-block:1px solid var(--cinema-rule); padding-block:24px; }
 .gallery-home .world-links .section-title { margin-top:0; }
-@media(min-width:850px){
-  .feature { min-height:clamp(430px,36vw,610px); }
-  .feature-photo { left:39%; }
-  .feature::after { background:linear-gradient(90deg,var(--cinema-mat) 0 33%,#232823ca 41%,transparent 61%); }
-  .feature-copy { width:48%; max-width:none; padding:var(--cinema-gutter); }
-  .feature h1 { font-size:clamp(3.25rem,5.6vw,6.1rem); }
-}
-@media(max-width:849px){
-  .feature { min-height:490px; }
-  .feature-copy { max-width:100%; padding:22px; }
-  .feature::after { background:linear-gradient(0deg,#101710 0%,#111811d9 26%,#10171055 66%,transparent 90%); }
-  .still-rail { top:12px; right:12px; bottom:auto; }
-  .feature-copy .accent-link { margin-top:16px; }
-}
-
 /* A continuous gallery surround. Reading, mixing and handwriting use lighter paper. */
 body[data-room] { background:var(--cinema-wall); }
 body[data-room] .museum > .loading { color:var(--ink); }

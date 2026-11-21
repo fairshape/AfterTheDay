@@ -20,5 +20,4 @@ def keyboard(*rows) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[list(row) for row in rows if row])
 
 def song_options():
-    return ((action("find_song", "song:search"),),
-            (action("paste_song", "song:link"), action("upload_song", "song:file")))
+    return ((action("paste_song", "song:link"), action("upload_song", "song:file")),)

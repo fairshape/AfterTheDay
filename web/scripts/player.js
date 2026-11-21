@@ -213,7 +213,8 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
     layers[1].style.opacity = blend;
     layers[1].style.transform = transform(frame, Math.min(1, local / frame.seconds));
     const captionOut = frame.captionOut ?? frame.seconds;
-    caption.hidden = !captionsOn || !frame.caption || local < (frame.captionIn ?? 0) || (local > captionOut && index !== frames.length - 1);
+    const canClearCaption = index !== frames.length - 1 || frame.tail > 0;
+    caption.hidden = !captionsOn || !frame.caption || local < (frame.captionIn ?? 0) || (local > captionOut && canClearCaption);
     progress.value = seconds;
     scrub.value = seconds;
     scrub.setAttribute("aria-valuetext", timestamp(seconds));

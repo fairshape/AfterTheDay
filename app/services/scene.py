@@ -5,7 +5,7 @@ from PIL import Image
 from app.infrastructure.audio.analysis import analyze_audio
 from app.services.art_direction import suggest_sticker
 from app.services.palette import photo_palette
-from app.services.story import interpret
+from app.services.story import interpret, short_quote
 from app.services.anniversaries import suggested_tags
 from app.services.emotion import interpret_scene
 from app.services.studio import art_settings, camera_motion, shot_order
@@ -56,19 +56,25 @@ def build_scene(media, day_id: str, story: str, photos: list[dict], track: dict,
     for index, photo in enumerate(ordered):
         photo_id = photo["id"]
         occurrence = occurrences.get(photo_id, 0)
-        captions[index] = details.get("_captions", {}).get(f"{photo_id}:{occurrence}", captions[index])
+        # The author can identify what a particular photo means through its caption.
+        attached = short_quote(photo.get("caption", "")) if occurrence == 0 else ""
+        default = attached or captions[index]
+        if index == len(ordered) - 1 and arc.focus in {"pin", "release"}:
+            default = arc.ending
+        captions[index] = details.get("_captions", {}).get(f"{photo_id}:{occurrence}", default)
         occurrences[photo_id] = occurrence + 1
 
     cues = analysis.cues if analysis else ()
     highlight = next((i for i, photo in enumerate(ordered) if photo["id"] == selected_photo), None)
+    hold_detail = arc.focus in {"pin", "release"} or arc.intimate or arc.quiet or explicit_photo
     points, aligned = edit_points(captions, duration, offset, rhythm,
-                                  arc.release or arc.intimate or arc.quiet or explicit_photo, cues, release=arc.release, highlight=highlight if studio.get("order") else None)
+                                  hold_detail, cues, release=arc.release, highlight=highlight if studio.get("order") else None)
     dissolve = rhythm.transition * (.76 if arc.restless else 1.13 if arc.quiet else 1)
     treatment = art_settings(studio, .13 if WEATHER_TEXTURE.search(details.get("weather", "")) else .075)
     frames = []
     for index, photo in enumerate(ordered):
         final = index == len(ordered) - 1
-        still = final and (arc.release or explicit_photo or arc.intimate or arc.quiet)
+        still = final and hold_detail
         zoom = 1 + (rhythm.zoom - 1) * (.55 if arc.quiet else 1)
         with Image.open(media.path(day_id, photo["id"])) as image:
             w, h = image.size
@@ -87,9 +93,11 @@ def build_scene(media, day_id: str, story: str, photos: list[dict], track: dict,
                 framing += .018 * max(0, min(index, 3))
             motion = {"from": framing, "to": round(max(framing, zoom), 3),
                       "x": .6 if index % 2 else -.35, "y": -.24}
+        tail = min(1.45, seconds * .18) if still and seconds >= 5 and len(captions[index]) <= 80 else 0
         frames.append({"asset": photo["id"], "start": points[index], "seconds": seconds, "caption": captions[index],
                        "captionIn": round(min(.80 if arc.quiet else .42 if final else .20, seconds*.20),3),
-                       "captionOut": round(seconds if final else seconds - min(.1, seconds*.07),3),
+                       "captionOut": round(seconds - (tail if final else min(.1, seconds*.07)),3),
+                       "tail": round(tail, 3),
                        "crop": crop, "transition": min(dissolve, seconds*.25), "motion": camera_motion(motion, studio.get("motion", "auto"))})
 
     basis = "measured" if aligned else "character"
@@ -117,6 +125,8 @@ def build_scene(media, day_id: str, story: str, photos: list[dict], track: dict,
     for frame in frames:
         frame["transition"] = round(min(frame["seconds"] * .25, frame["transition"] * artistic["dissolveGain"]), 3)
         frame["captionIn"] = round(min(frame["seconds"] * .25, frame["captionIn"] + artistic["captionDelay"]), 3)
+        if frame["tail"]:
+            frame["captionIn"] = round(min(1.1, frame["seconds"] * .20), 3)
         if studio.get("motion", "auto") == "auto":
             gain = artistic["cameraGain"]
             motion = frame["motion"]
@@ -128,7 +138,7 @@ def build_scene(media, day_id: str, story: str, photos: list[dict], track: dict,
         boundaries = [round(duration*i/len(frames),3) for i in range(len(frames)+1)]
         scene["evenFrames"] = [
             {**frame, "start": boundaries[index], "seconds": round(boundaries[index+1]-boundaries[index],3),
-             "captionIn": 0, "captionOut": round(boundaries[index+1]-boundaries[index],3),
+             "captionIn": 0, "captionOut": round(boundaries[index+1]-boundaries[index],3), "tail": 0,
              "transition": .2, "motion": {"from": 1, "to": 1.03, "x":0,"y":0}}
             for index, frame in enumerate(frames)
         ]
