@@ -1,0 +1,31 @@
+::view-transition-group(memory-photo) {
+  animation-duration: var(--route-ms);
+  animation-timing-function: var(--ease);
+  z-index: 4;
+}
+::view-transition-image-pair(memory-photo) { isolation: isolate; }
+::view-transition-old(memory-photo),
+::view-transition-new(memory-photo) { height: 100%; object-fit: fill; }
+::view-transition-old(root) { animation: 230ms ease both page-out; }
+::view-transition-new(root) { animation: 270ms var(--ease) 85ms both page-in; }
+
+.cover-hero .cover-sticker { animation: sticker-land var(--sticker-ms) var(--ease) var(--reveal-ms) both; }
+.cover-hero .cover-caption { animation: page-in 260ms var(--ease) var(--reveal-ms) both; }
+.folder-actions { animation: page-in 265ms var(--ease) 180ms both; }
+
+.sheet[open] { animation: sheet-up var(--sheet-ms) var(--ease) both; }
+.sheet[open]::backdrop { animation: page-in var(--sheet-ms) ease both; }
+.player-finish:not([hidden]) { animation: page-in 230ms ease both; }
+
+@keyframes sticker-land {
+  0% { opacity: 0; transform: translateY(-8px) rotate(-17deg) scale(.76); }
+  67% { opacity: 1; transform: rotate(9deg) scale(1.06); }
+  100% { opacity: 1; transform: rotate(5deg) scale(1); }
+}
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes page-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0s !important; }
+}

@@ -1,0 +1,38 @@
+@font-face {
+  font-family: "Golos Text";
+  src: url("/fonts/GolosText.ttf") format("truetype");
+  font-weight: 400 900;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --ink: #17132B;
+  --paper: #FFF5E7;
+  --white: #FFFCF6;
+  --lilac: #AA89FF;
+  --lime: #DBF565;
+  --tomato: #FF6B55;
+  --pool: #73C8F4;
+  --muted: #61556B;
+  --line: #D9CBCE;
+  --error: #A12942;
+  --success: #286149;
+  --body: "Golos Text", system-ui, sans-serif;
+  --display: "Golos Text", system-ui, sans-serif;
+  --max-width: 1056px;
+  --gutter: clamp(16px, 4.4vw, 48px);
+  --pad-top: max(env(safe-area-inset-top, 0px), var(--telegram-top, 0px));
+  --pad-right: max(env(safe-area-inset-right, 0px), var(--telegram-right, 0px));
+  --pad-bottom: max(env(safe-area-inset-bottom, 0px), var(--telegram-bottom, 0px));
+  --pad-left: max(env(safe-area-inset-left, 0px), var(--telegram-left, 0px));
+  --route-ms: 395ms;
+  --player-ms: 320ms;
+  --sticker-ms: 280ms;
+  --sheet-ms: 265ms;
+  --reveal-ms: 135ms;
+  --cover-hold-ms: 720ms;
+  --sticker-hold-ms: 1500ms;
+  --final-hold-ms: 950ms;
+  --ease: cubic-bezier(.2,.75,.23,1);
+}
