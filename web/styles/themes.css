@@ -1,0 +1,88 @@
+/* Interface materials. Photographs and saved replay frames use their own scene parameters. */
+html[data-theme=paper] {
+  color-scheme:light;
+  --ui-wall:#f1ecdf; --ui-panel:#faf6ec; --ui-raised:#fffdf6;
+  --ui-ink:#302b24; --ui-muted:#655d50; --ui-rule:#c4b9a5;
+  --ui-action:#824029; --ui-on-action:#fff8ed;
+}
+html[data-theme=neon] {
+  color-scheme:dark;
+  --ui-wall:#121511; --ui-panel:#20241f; --ui-raised:#2a3029;
+  --ui-ink:#f2f4e9; --ui-muted:#c0c6b6; --ui-rule:#525a4e;
+  --ui-action:#d9f579; --ui-on-action:#1b2112;
+  --desk-ink:var(--ui-ink); --desk-paper:var(--ui-panel); --desk-line:var(--ui-rule);
+}
+html[data-theme] body[data-room] {
+  --cinema-wall:var(--ui-wall); --cinema-type:var(--ui-ink); --cinema-note:var(--ui-muted);
+  --cinema-rule:var(--ui-rule); --cinema-mat:var(--ui-panel); --cinema-signal:var(--ui-action);
+  background:var(--ui-wall); color:var(--ui-ink);
+}
+html[data-theme] body[data-room] .museum-header {
+  background:var(--ui-panel); color:var(--ui-ink); border-color:var(--ui-rule);
+}
+html[data-theme] body[data-room] .museum-header nav a {color:var(--ui-ink)}
+html[data-theme] body[data-room] .museum-header :is(.iris,.create-link) {color:var(--ui-on-action);background:var(--ui-action)}
+html[data-theme] .museum-header nav [aria-current=page]{border-color:var(--ui-action)}
+.theme-picker {display:inline-flex;align-items:center;position:relative;background:var(--ui-panel);border:1px solid var(--ui-rule);border-radius:25px;padding:3px;gap:2px;color:var(--ui-ink)}
+.theme-choice {background:transparent;border:0;color:inherit;border-radius:20px;padding:6px 13px;min-height:44px;font:650 .82rem var(--body)}
+.theme-choice[aria-pressed=true] {background:var(--ui-action);color:var(--ui-on-action)}
+.theme-status:not(:empty) {position:absolute;top:100%;right:0;width:210px;background:var(--ui-panel);color:var(--ui-ink);border:1px solid var(--ui-rule);padding:10px;z-index:8}
+.table-heading h1 {margin-right:0}
+.table-heading .table-link {margin-left:auto}
+html[data-theme] :is(.studio-fields,.film-timeline,.capture-panel,.archive-filter,.calendar,.reading,.profile-panel,.folder,.sheet,.folder .day-collection) {
+  --paper:var(--ui-panel); --white:var(--ui-raised); --ink:var(--ui-ink);
+  --muted:var(--ui-muted); --line:var(--ui-rule); --cobalt-ink:var(--ui-action);
+  background-color:var(--ui-panel);color:var(--ui-ink);
+}
+html[data-theme] body[data-room] :is(.folder-actions .primary-button,.solid-btn,.accent-link,.workspace .step[aria-current=step],.primary-button) {background:var(--ui-action);color:var(--ui-on-action)}
+html[data-theme] .table-light {background:var(--ui-panel);color:var(--ui-ink);border-color:var(--ui-rule)}
+html[data-theme] .exhibition .world-tab:not([aria-pressed=true]) {color:var(--ui-ink)}
+html[data-theme] :is(.life-workspace .film-options,.studio-fields,.capture-panel) {background-color:var(--ui-panel);color:var(--ui-ink)}
+html[data-theme] .theme-choice:focus-visible {outline:2px solid var(--ui-ink);outline-offset:1px}
+html[data-theme=neon] body[data-room] {--paper:var(--ui-panel);--white:var(--ui-raised);--line:var(--ui-rule);--muted:var(--ui-muted);--ink:var(--ui-ink);--success:#b4de82;--error:#ffad9e}
+html[data-theme=neon] :is(.table-surface,.folder .folder-cover) {
+  --lamp:#c2e394;
+  background-color:#171c18;
+  background-image:radial-gradient(ellipse at 42% 0%,color-mix(in srgb,var(--collection-light,var(--lamp)) 18%,transparent),transparent 63%),
+    linear-gradient(#c2d3aa10 1px, transparent 1px),linear-gradient(90deg,#c2d3aa10 1px,transparent 1px);
+  background-size:100% 100%,24px 24px,24px 24px;
+  box-shadow:inset 0 0 0 1px #73846460,inset 0 -30px 80px #080c0899;
+}
+html[data-theme=neon] .table-surface[data-light=cool]{--lamp:#98c9fe}
+html[data-theme=neon] .table-surface[data-light=plain]{--lamp:#acb2a8}
+html[data-theme=neon] .table-surface::before {background:none}
+html[data-theme=neon] :is(.map-piece,.open-note,.blank-note,.table-pager,.archive-note) {
+  background:#292f27;color:var(--ui-ink);
+  box-shadow:0 0 0 1px #b3c39962,2px 9px 18px #0009;
+}
+html[data-theme=neon] :is(.map-piece,.open-note)::before {background:#bfdd8499}
+html[data-theme=neon] .map-piece[data-position=center]::after {background:#30372c}
+html[data-theme=neon] :is(.map-piece[data-position=center] .mounted-print,.loose-print){border-color:#a9b39c}
+html[data-theme=neon] [data-family=cinema]:is(.map-piece,.open-note){background:#191d21}
+html[data-theme=neon] [data-family=wash]:is(.map-piece,.open-note){background:linear-gradient(32deg,color-mix(in srgb,var(--paper-accent) 25%,#20251e),#232821 70%)}
+html[data-theme=neon] [data-family=collage]:is(.map-piece,.open-note){box-shadow:5px 5px 0 var(--paper-accent),0 8px 16px #0008}
+html[data-theme=neon] .map-piece:is(:hover,:focus-visible){outline:2px solid var(--ui-action);outline-offset:2px}
+html[data-theme=neon] :is(.paper-date,.table-step,.table-page,.archive-tray .minor,.life-workspace .ink-link){color:var(--ui-action)}
+html[data-theme=neon] :is(.editor-choice,.mood-choice,.track-choice)[aria-pressed=true],
+html[data-theme=neon] .song-mark {background:var(--ui-action);color:var(--ui-on-action)}
+html[data-theme] .theater :is(.primary-control,.life-controls button[aria-pressed=true]) {background:var(--ui-action);color:var(--ui-on-action)}
+html[data-theme] :is(.scene-scrub,.life-controls input){accent-color:var(--ui-action)}
+@media(max-width:620px) {
+  .table-heading {display:grid;grid-template-columns:auto 1fr;gap:6px 14px}
+  .theme-picker,.table-light {justify-self:end}
+  .table-heading .table-link {margin:0}
+}
+/* The cinema stays dark in both rooms. These neutral inks protect captions,
+   dates and secondary controls from the surrounding reading-surface colors. */
+html[data-theme] .theater {--paper:#faf6ed;--ink:#171a19;color:var(--paper)}
+html[data-theme] .theater::backdrop {background:#121411}
+html[data-theme] .theater :is(.primary-control,.player-action:not(.secondary)) {
+  border-color:var(--ui-action);background:var(--ui-action);color:var(--ui-on-action);
+}
+html[data-theme] .table-light {width:auto;max-width:100%;min-height:44px}
+html[data-theme=neon] [data-family=geometry]:is(.map-piece,.open-note) {
+  background-color:#242b26;background-image:repeating-linear-gradient(0deg,transparent 0 23px,#8f9f8521 23px 24px);
+}
+html[data-theme=neon] .table-surface {border-radius:5px}
+html[data-theme=paper] .table-surface[data-light=warm]::before {background:color-mix(in srgb,var(--collection-light,#d29947) 26%,transparent)}
+html[data-theme=paper] .table-surface[data-light=cool]::before {background:color-mix(in srgb,var(--collection-light,#939fb0) 42%,transparent)}

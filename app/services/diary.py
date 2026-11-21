@@ -259,9 +259,29 @@ class Diary:
             recent = db.scalars(select(Day.scene).where(
                 Day.owner_id == day.owner_id, Day.saved_at.is_not(None), Day.id != day.id
             ).order_by(Day.saved_at.desc()).limit(4))
-            layouts = [s["emotion"].get("layout", "portrait") for s in recent
-                       if s.get("emotion", {}).get("family") == family]
-        scene["emotion"]["layout"] = min(("portrait", "spread"), key=layouts.count)
+            # The photo's proportions break ties. Switch composition when recent
+            # pages already use the same visual and rhythmic vocabulary.
+            preferred = "spread" if scene["palette"].get("mainAspect", 1) > 1.4 else "portrait"
+            costs = {"spread": 0., "portrait": 0.}
+            for previous in recent:
+                art = previous.get("emotion", {})
+                layout = art.get("layout")
+                if layout not in costs:
+                    continue
+                palette = previous.get("palette", {})
+                signals = previous.get("signals", {})
+                similarity = sum((
+                    art.get("family") == family,
+                    art.get("type") == scene["emotion"]["type"],
+                    abs(palette.get("mainLight", .5) - scene["palette"].get("mainLight", .5)) < .14,
+                    abs(art.get("warmth", .5) - scene["emotion"]["warmth"]) < .12,
+                    abs(previous.get("grain", 0) - scene["grain"]) < .025,
+                    abs(signals.get("transition", 0) - scene["signals"]["transition"]) < .18,
+                    abs(signals.get("baseSeconds", 0) - scene["signals"]["baseSeconds"]) < .8,
+                ))
+                if similarity >= 4:
+                    costs[layout] += similarity
+        scene["emotion"]["layout"] = min(costs, key=lambda layout: (costs[layout], layout != preferred))
 
     def save(self, owner: int, day_id: str, *, comparison: dict | None = None) -> Day:
         day = self.get(owner, day_id, include_draft=True)

@@ -38,6 +38,12 @@ def walkthrough(base, executable, snapshots, disposable_demo=False):
             page.goto(base)
             pieces = page.locator(".map-piece")
             expect(pieces.first).to_be_visible()
+            themes = page.get_by_role("group", name="Тема приложения")
+            expect(themes.get_by_role("button", name="Бумага")).to_have_attribute("aria-pressed", "true")
+            themes.get_by_role("button", name="Неон").click()
+            expect(themes.get_by_role("button", name="Неон")).to_be_enabled()
+            page.reload()
+            expect(themes.get_by_role("button", name="Неон")).to_have_attribute("aria-pressed", "true")
             first = pieces.first.get_attribute("href")
             page.get_by_role("button", name="Предыдущий разворот").click()
             assert pieces.first.get_attribute("href") != first

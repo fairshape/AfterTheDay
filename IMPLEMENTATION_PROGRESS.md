@@ -1,31 +1,45 @@
-# Memory Experience V2 implementation progress
+# Implementation and verification record
 
-## Current state
+The working tree implements a private diary with a Memory Table, per-day notes, two interactive film players and a Telegram capture flow. The latest schema revision in the repository is `0009_interface_theme`. This record describes the implementation and earlier development checks. A running deployment may have a different revision.
 
-The existing private Telegram diary, local narration, original media, signed authentication and one-command startup are retained. The new native-module frontend, isolated browser capture, emotional collections and persisted cross-day films are integrated. See ARCHITECTURE.md for module and data ownership.
+## What ships together
 
-## Verified in development
+| Capability | Implemented boundary | Evidence |
+| --- | --- | --- |
+| Capture and publication | The Telegram bot and web studio share one persistent draft per owner. A confirmed preview can publish the day with its original ID. | [Draft and publication service](app/services/diary.py), [editor regressions](tests/test_editor.py) |
+| Memory Table and note | Both paper and neon lead from the same table to the note and Day Replay. Theme follows the account. Fixed lighting and spread placement use device storage scoped to the library. | [Two interface materials](docs/interface-themes.jpg), [theme migration test](tests/test_appearance.py) |
+| Day Replay and studio | The server saves frames, crops, captions, transitions, audio excerpt and editing decisions. An uncommitted candidate can be discarded while the published edit remains playable. | [Three generated scenes](docs/art-direction-scenes.jpg), [studio and ownership tests](tests/test_memory_experience.py) |
+| Emotion Archive and Life Replay | Search, overlapping mood tags, favorites and date views lead to published memories. Selecting two to twenty days can produce a saved film. A saved film protects its source days from deletion. | [Film routes](app/web/routes/films.py), [browser walkthrough](tests/browser_walkthrough.py) |
+| Voice and anniversaries | Local models supply optional speech. A delivery ledger tracks individual anniversary occurrences. Private-mode delivery uses Telegram. | [Voice workflow](app/services/voice_workflow.py), [reminder tests](tests/test_anniversaries.py) |
 
-- Browser capture with text, a photograph, a link and a separate uploaded-audio scenario. Both preview and publish. The uploaded track played and a replacement link could be committed.
-- Chromium exercised archive search, return navigation, reading and cover editing, Day Replay, Life Replay preview, pause, save, reopen and editing a saved film. Calendar and studio layouts were exercised at widths of 360, 430 and 1250 pixels, with a separate 390-pixel walkthrough.
-- Two independent demo browser contexts saw different libraries. A foreign day and its media returned 404.
-- A test aiogram dispatcher received a deep link, text, two photo messages, a song link and a track-character selection. Signed test launch data opened the private Mini App; a Piper sample, cover edit, publication callback, exact saved-day link, second edit, playback and return were exercised. A live human-operated Telegram client was not used.
-- Migrations ran on isolated SQLite databases. Alembic reported head 0008 and no pending metadata differences. The frontend consists of native browser modules. It has no bundle step.
-- Backend regressions cover ownership, draft media, saved-film source protection, recurring reminders, idempotent day publication and preserving a playable version through a failed edit.
+## Recorded development checks
 
-## V2 delivery
+- **Backend and migrations.** Eleven unit tests passed during the two-theme implementation. They cover failed synthesis, stale and foreign writes, protected media, studio and film edits, source-day deletion protection, reminders and the 0008 → 0009 preference migration. The migration test preserves a pre-existing timezone and notification setting while changing themes independently for two accounts.
+- **Browser.** Chromium exercised table navigation, reading, archive search, cover editing, scene pause and seek, Life Replay selection, preview, save and reopening. Studio tests included saving a 12-second still-camera edit. The embedded-frame deletion flow exercised both cancellation and confirmation. Theme checks used 360, 390, 430 and 1280 px viewports, a second demo identity, reopening with the original identity and a simulated theme-save failure.
+- **Art direction.** In the generated park, office and platform examples, the stored base shot durations were 4.6, 2.45 and 3.0 seconds. These are timing inputs, not the length of every shot. All three edits used measured cues. The platform's camera gain was 0.42, preserving slow movement within the shot while the music drove faster changes between images. [Screenshots](docs/art-direction-scenes.jpg)
+- **Telegram integration.** Earlier tests used an aiogram dispatcher and signed test launch data. They exercised a private-chat deep link, text, two photos, a song link, a track-character choice, publication and the button for the saved day. These were transport and application checks. Native iOS and Android interaction remains a device check.
+- **Visual history.** The [earlier home](docs/memory-table-before.jpg) and [earlier note](docs/memory-note-before.jpg) document the previous design. Local checkpoint `720f6e6` captured the working wooden table before the introduction of interface themes.
 
-- The common dark screening-room palette, editorial type, photo controls and paper reading surfaces are live across the dashboard, onboarding, studio, settings, archive, date views and both players. The latest-day poster has a selectable strip of the memory's actual photographs.
-- Archive cards now have a direct playback action and a multi-selection action. Selecting three days in the archive opened exactly those three chapters in the film studio. Custom and empty historical periods were exercised.
-- Day Replay Studio now persists shot order, photographic treatment, per-frame captions, camera intensity and a target duration. The walkthrough reordered photographs, selected a graphic treatment, disabled movement and requested 12 seconds. The previous scene remained available through preview. Reopening after confirmation reproduced the new order, treatment, 12-second duration and still frames.
-- Ten backend tests passed, including concurrent-version checks, private media, source preservation, caption edits and studio persistence. The checked-in Playwright walkthrough passed. Additional browser runs exercised the three distinct original demo scenes, reduced motion, an invalid upload, empty search, retry after a service error, a song replacement, and a second edit of a saved film.
-- The existing private service was restarted. Both its local and configured HTTPS origins served the updated shell with HTTP 200. Both denied anonymous film reads with HTTP 401. No test messages or browser-created memories were sent to real accounts.
-- A selection of actual Chromium screenshots from the isolated fictional demo is in [the visual review](docs/design-review.jpg).
+## Reproduce the checks
 
-## Next device check
+From an active project environment, run the backend regressions:
 
-Open the existing bot in Telegram on Android or iOS, use its menu to launch the Mini App, open a Day Replay and a saved Life Replay, then return with Telegram's native back button. Browser and signed test-transport checks exercised these code paths. Physical-device audio policy and native system volume remain unverified.
+```sh
+python -m unittest discover -s tests -v
+```
 
-## Scope
+For browser QA, use a local, disposable demo instance in a separate data directory. With Playwright and Chromium installed, target its loopback origin. The optional deletion check modifies only the walkthrough's demo library.
 
-Both players produce interactive films. Video encoding/export, music streaming from commercial catalogues and linked-provider synchronization remain outside this implementation. Browser audio policy can require a tap to enable sound. The local analysis uses waveform cues; it does not identify individual instruments. A public installation with many visitors needs a retention policy for demo libraries. Clearing a demo cookie loses access to that browser library.
+```sh
+python tests/browser_walkthrough.py --origin http://127.0.0.1:8001 --disposable-demo
+```
+
+The walkthrough also accepts `--chromium` for a system executable and `--screenshots` for an output directory. The native-module frontend is exercised in the browser and has no bundle step. See the [setup and runtime modes](README.md).
+
+## Remaining acceptance work
+
+1. On a physical Telegram client, open the menu and a saved-day button, start sound with a tap, scrub across a caption and return using Telegram's native back action.
+2. Open the same Telegram account on a second device and check the theme. Within an enabled anniversary, confirm the local time and notification text in a real chat.
+3. Before submission, verify the public entry link and repository access from a judge's device, add team credits and attach the recorded video. A larger public demo also needs a retention policy for its per-browser libraries.
+
+The product currently delivers browser-based playback. MP4 export and catalogue song search are outside the implementation. Linked music opens at its provider. Audio-cue analysis needs a decodable uploaded file, and narration needs the configured local models. [Architecture and failure handling](ARCHITECTURE.md)

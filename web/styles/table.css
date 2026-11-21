@@ -135,3 +135,5 @@ body:is([data-room=home],[data-room=today]) .museum {width:min(96%,1520px); padd
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
 }
 body[data-room=feed] .gallery-home {color:var(--cinema-type)}
+.open-note .paper-phrase {margin-block:var(--note-space, 12px)}
+.open-note .loose-print {width:var(--detail-size, 32%);transform:rotate(var(--detail-angle, 9deg))}

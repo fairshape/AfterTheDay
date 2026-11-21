@@ -1,3 +1,4 @@
+import {themePicker} from "./theme.js";
 import {art, stickerImage} from "./art.js";
 import {asset} from "./client.js";
 import {button, captionedImage, dateLabel, element as el} from "./dom.js";
@@ -19,6 +20,10 @@ export function paperNote(day, current = false, readySrc = "") {
   note.dataset.family = day.emotion.family || "journal";
   note.dataset.layout = day.emotion.layout || (day.photoCount > 2 ? "spread" : "portrait");
   note.style.setProperty("--paper-accent", art.colors.find(c => c.id === style.color)?.hex || day.coverPalette?.field || "#98886d");
+  const artProfile = day.emotion;
+  note.style.setProperty("--note-space", (8 + 14 * (artProfile.calmness ?? .5)) + "px");
+  note.style.setProperty("--detail-angle", (4 + 10 * (artProfile.playfulness ?? 0)) + "deg");
+  note.style.setProperty("--detail-size", (29 + 12 * (artProfile.intimacy ?? .4)) + "%");
   const print = el("div", "mounted-print");
   const main = captionedImage(previewPhoto(day.cover), "paper-photo cover-photo", asset, day.title, readySrc);
   main.querySelector("img").dataset.original = day.cover;
@@ -43,7 +48,7 @@ export function paperNote(day, current = false, readySrc = "") {
 export function memoryTable(days, context, warmDay) {
   const world = el("section", "memory-world");
   const toolbar = el("header", "table-heading");
-  toolbar.append(el("h1", "", "Мой стол"), anchor("Календарь ↗", "/?view=archive&calendar=1", "table-link"));
+  toolbar.append(el("h1", "", "Мой стол"), themePicker(), anchor("Календарь ↗", "/?view=archive&calendar=1", "table-link"));
   world.append(toolbar);
   const board = el("div", "table-surface");
   const scene = el("div", "table-objects");
@@ -84,8 +89,19 @@ export function memoryTable(days, context, warmDay) {
     for (const [value,label] of [["auto","Свет по фото"],["warm","Тёплый свет"],["cool","Прохладный свет"],["plain","Естественный свет"]]) light.add(new Option(label,value));
     try { light.value = localStorage.getItem(lightKey) || "auto"; } catch {}
     function illuminate() {
-      const warmth = days.slice(0,8).reduce((v,d)=>v+(d.emotion.warmth ?? .5),0)/Math.min(days.length,8);
-      board.dataset.light = light.value === "auto" ? (warmth >= .5 ? "warm":"cool") : light.value;
+      const recent = days.slice(0, 8);
+      const warmth = recent.reduce((sum, day) => sum + (day.emotion.warmth ?? .5), 0) / recent.length;
+      board.dataset.light = light.value === "auto" ? (warmth >= .5 ? "warm" : "cool") : light.value;
+      board.style.removeProperty("--collection-light");
+      if (light.value !== "auto") return;
+      // The lamp picks up the collection's inks. A pinned light ignores later additions.
+      const colors = recent.map(day => art.colors.find(color => color.id === day.style?.color)?.hex
+        || day.coverPalette?.field).filter(hex => /^#[0-9a-f]{6}$/i.test(hex));
+      if (colors.length) {
+        const rgb = [1, 3, 5].map(index => Math.round(colors.reduce((sum, color) =>
+          sum + parseInt(color.slice(index, index + 2), 16), 0) / colors.length));
+        board.style.setProperty("--collection-light", "rgb(" + rgb.join(" ") + ")");
+      }
     }
     light.onchange = () => { illuminate(); try {localStorage.setItem(lightKey,light.value);} catch {} };
     illuminate();

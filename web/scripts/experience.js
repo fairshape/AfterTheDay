@@ -1,3 +1,4 @@
+import {loadTheme, themePicker} from "./theme.js";
 import {loadArt} from "./art.js";
 import {api, connect, enableMediaStreaming} from "./client.js";
 import {reminderCenter} from "./collection.js";
@@ -166,7 +167,10 @@ async function boot() {
     tg.onEvent?.("safeAreaChanged", insets);
     tg.onEvent?.("contentSafeAreaChanged", insets);
   }
-  const media = enableMediaStreaming().catch(() => {});
+  window.addEventListener("pageshow", event => {
+    if (event.persisted) loadTheme().catch(() => {});
+  });
+  const media = Promise.all([enableMediaStreaming().catch(() => {}), loadTheme()]);
   const needsDays = !id && !["create", "settings", "reminders"].includes(view);
   const needsContext = needsDays && !["welcome", "studio", "feed"].includes(view);
   const daysRequest = needsDays ? api("/api/days") : Promise.resolve([]);
@@ -200,6 +204,7 @@ async function boot() {
     panel.append(
         el("span", "mono", mode.demo ? "ДЕМОНСТРАЦИОННЫЙ ПРОФИЛЬ" : "ЛИЧНАЯ КОЛЛЕКЦИЯ"),
         el("h1", "page-title", tg?.initDataUnsafe?.user?.first_name || "Мой профиль"),
+        themePicker(),
         el("h2", "reading-title", "Годовщины"),
         reminderCenter(id => location.assign(dayURL(id)), mode.demo));
     if (mode.recordUrl)

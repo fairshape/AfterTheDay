@@ -42,12 +42,17 @@ def foreground(background: str) -> str:
 
 def photo_palette(media, day_id: str, photos: list[dict], main_photo: str) -> dict:
     candidates = []
+    main_aspect = 1.0
+    main_light = 0.5
     for photo in photos:
         with Image.open(media.path(day_id, photo["id"])) as source:
             thumbnail = ImageOps.contain(ImageOps.exif_transpose(source).convert("RGB"), (72, 72))
+        if photo["id"] == main_photo:
+            main_aspect = thumbnail.width / thumbnail.height
+            main_light = sum(thumbnail.convert("L").tobytes()) / (255 * thumbnail.width * thumbnail.height)
         indexed = thumbnail.quantize(colors=12)
         swatches = indexed.getpalette()
-        indexes = list(indexed.getdata())
+        indexes = indexed.tobytes()
         width, height = thumbnail.size
         details = [0] * 12
         for index, value in enumerate(indexes):
@@ -85,4 +90,5 @@ def photo_palette(media, day_id: str, photos: list[dict], main_photo: str) -> di
         roles = {"field": field_hex, "shadow": shadow, "accent": accent_hex}
         source = "photo"
     return {**roles, "foreground": foreground(roles["field"]), "accentInk": foreground(roles["accent"]),
+            "mainAspect": round(main_aspect, 2), "mainLight": round(main_light, 3),
             "ink": PAPER, "background": roles["shadow"], "source": source, "mainPhoto": main_photo}

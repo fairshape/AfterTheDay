@@ -41,6 +41,7 @@ class UserPreference(Base):
     __tablename__ = "user_preferences"
 
     owner_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    theme: Mapped[str] = mapped_column(String(8), default="paper", server_default="paper")
     auto_anniversary: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
     show_title: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
     timezone: Mapped[str] = mapped_column(String(80))

@@ -1,4 +1,7 @@
+from typing import Literal
 from uuid import UUID
+
+from sqlalchemy.dialects.sqlite import insert
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -8,6 +11,25 @@ from app.services.anniversaries import MOODS, occurrence, reminder_settings, cha
 from app.web.routes.diary import diary_for, owner_for, card
 
 router = APIRouter(prefix="/api")
+
+
+class Appearance(BaseModel):
+    theme: Literal["paper", "neon"]
+
+
+@router.get("/appearance")
+def appearance(owner=Depends(owner_for), diary=Depends(diary_for)):
+    with diary.sessions() as db:
+        pref = db.get(UserPreference, owner)
+        return Appearance(theme=pref.theme if pref else "paper")
+
+
+@router.post("/appearance")
+def set_appearance(body: Appearance, owner=Depends(owner_for), diary=Depends(diary_for)):
+    with diary.sessions.begin() as db:
+        statement = insert(UserPreference).values(owner_id=owner, timezone=str(diary.timezone), theme=body.theme)
+        db.execute(statement.on_conflict_do_update(index_elements=["owner_id"], set_={"theme": body.theme}))
+    return body
 
 
 class Mark(BaseModel):

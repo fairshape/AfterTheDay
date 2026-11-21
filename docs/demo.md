@@ -1,18 +1,12 @@
-# Three-minute demo
+# A 2 minute 55 second demonstration
 
-## Atmosphere-first opening
+Show the audience one detail first. In **Дорога после дождя**, the lamp reflection stays on screen after its caption disappears. Start with that silence in the narration, then show where the words, image and rhythm came from.
 
-Use a freshly seeded fictional demo and open **Дорога после дождя**. Play it once with sound and let the scene finish before speaking. The soundtrack begins with a synthetic road texture. The first image gives the viewer a place to stand, the cup brings the scene closer, and the reflected light remains after the final caption clears. Let the audience watch and listen through that pause.
+## Prepare the two libraries
 
-Then say, “Окно, тепло в ладонях, отражение у остановки. Эти детали пришли из самой записи. Мы оставили фонарь в кадре чуть дольше, потому что он остался в памяти автора.” Be clear that the soundtrack was made for the fictional example and the photo captions were supplied by its author.
+Start the [local demo](../README.md) with the six fictional days. Keep **Мой стол** open. For the bot segment use a configured private Telegram chat and a public HTTPS endpoint. Use a separate port for the demo if both run on the same machine. With only a browser, use **Создать** in the demo for the recording segment. The browser and Telegram capture routes both write through the same diary service.
 
-Existing demo libraries retain their saved edit. For the updated example, start demo mode with a fresh `DATA_DIR` on a separate port and open a private browser window.
-
-## Preparation
-
-Follow the [launch instructions](../README.md). Keep the fictional archive open in a browser. For a live creation, run another instance with `BOT_TOKEN`, `WEBAPP_URL`, and `DEMO_MODE=false`, and open the bot in a Telegram private chat. Use two ports if both instances run on the same machine.
-
-Use a real team day if you have one and can share it. No team material accompanied this prototype. For the fictional live walkthrough, have [rain-1.jpg](../demo/photos/rain-1.jpg) ready to send and prepare the original audio file after starting the demo once.
+Have [the rain photograph](../demo/photos/rain-1.jpg) ready. To create an original audio file for the capture, run this in the active project environment after the first demo startup:
 
 ```sh
 python -c 'from pathlib import Path; from demo.score import make_score; Path("var/demo-tour.wav").write_bytes(make_score("rain"))'
@@ -20,13 +14,17 @@ python -c 'from pathlib import Path; from demo.score import make_score; Path("va
 
 ## Run of show
 
-| Time | On screen and narration |
-| --- | --- |
-| 0:00–0:22 | Play **Дорога после дождя** with sound and leave the final image visible. Use the line from the opening above to introduce the project. |
-| 0:22–0:52 | Cut to Telegram. Tap **Записать день**. Send “Дорога после дождя. В автобусе какао обжигало ладони. Фонарь дрожал в луже.” Send the photo and WAV. Choose **Мягкий** if prompted. Tap **Собрать воспоминание**, preview the scene, then tap **Сохранить день**. Trim the wait between actions. |
-| 0:52–1:20 | Tap **Пережить день** and let the photo move while the piano plays. Close the player and scroll to the story, gallery, and song. Tap **В дневник** and reopen the same entry. |
-| 1:20–2:03 | Switch to the fictional archive and open **Осенний парк и какао**. Compare **Тепло в ладонях** with **Ровный монтаж** on the same excerpt, then switch to **На шаг быстрее**. Call attention to the shorter holds, sharper cuts, and quicker push-in on exactly the same photos. Open **Почему так выглядит день?** to show the saved values. |
-| 2:03–2:30 | Open **Смех на кухне** and show the warm, rhythmic kitchen cuts. Preview a voice sample under **Голос** or toggle the scene microphone to hear the soundtrack duck. |
-| 2:30–2:55 | Open **Ночь в офисе перед сдачей** and let it run through to the still **Отправили** frame. Return to the archive and type **какао** to show how a remembered word brings back the rainy day. |
+| Time | On screen | Speaker cue |
+| --- | --- | --- |
+| 0:00–0:20 | Open the seeded rain note from the table. Tap **Пережить день** and allow the final reflection to hold. | After the image settles: «От целого дня мне запомнился фонарь, который дрожал в луже». |
+| 0:20–0:52 | In the bot, send «В автобусе какао обжигало ладони. Фонарь дрожал в луже», the photo and the WAV. Choose a character if prompted. Open the proposed memory, then **Сохранить день**. Trim waiting time in the recording. | «Это мои слова, снимок и музыка. Я вижу монтаж до сохранения». |
+| 0:52–1:10 | Open the exact day from its confirmation. Show the original story and photo beneath the note and play its track. Return to the table. | Explain how the same day ID connects the bot, note and player. |
+| 1:10–1:50 | Switch to the fictional park note. Play a passage from the original score, compare **Ровный монтаж**, then choose **На шаг быстрее**. Keep the photographs and words visible across the cuts. | «Меняем одну вещь — музыку. Сравните, сколько времени остаётся на кадр и на слова “Долго разговаривали”». |
+| 1:50–2:17 | Show the office's last still on **Отправили** and the letter on the platform against a rhythmic track. Search **какао** in the archive. | «Темп перехода и движение внутри фотографии можно почувствовать отдельно. А найти день можно даже по одному слову». |
+| 2:17–2:55 | Select three days in the archive, open **В монтажную**, edit a chapter caption, save and play the Life Replay. Finish with the three chapter dates and the project links. | «Это три записи из моего дневника. У каждой остался свой голос, но теперь я могу посмотреть их вместе». |
 
-If Telegram is unavailable at the venue, open the six-day local demo archive and use the park, office, and kitchen folders and use the first part of the presentation to show the story, gallery, and song below the cover. The local archive demonstrates generation and replay.
+## What to compare during rehearsal
+
+A fresh demo runs all six stories through the ordinary generation path. The park, office and platform have different camera travel, shot lengths and final lines. The rain and park folders include alternate soundtracks. **Почему так выглядит день?** surfaces decisions from the scene data. Switch the table between **Бумага** and **Неон** to show that the environment can change without recutting the memory.
+
+Use uploaded or bundled audio for the synchronization comparison. A service link opens via **Открыть песню**. If presenting narration, install the local models and enable the scene voice before recording. The [submission](../HACKATHON_SUBMISSION.md) contains the Russian project description and the [verification record](../IMPLEMENTATION_PROGRESS.md) lists device checks.

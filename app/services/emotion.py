@@ -58,7 +58,13 @@ def interpret_scene(scene, labels, story, confirmed=False):
         if analysis.get("cutCues")
         else "Темп задан характером выбранной песни."
     )
-    reflective = bool(scores.get("sad")) or bool(re.search(r"устал|груст|скучал|тоск", story, re.I))
+    reflective = bool(scores.get("sad")) or (not confirmed and bool(re.search(r"устал|груст|скучал|тоск", story, re.I)))
+    # Narrative space and musical energy have different sources. A fast song can
+    # cut between spacious, almost stationary photographs.
+    calmness = .85 if "спокойствие" in labels or reflective else .34 if scores.get("tense") else .5
+    intimacy = .8 if "уют" in labels else .4
+    playfulness = scores.get("funny", 0)
+    tension = scores.get("tense", 0)
     family = ("cinema" if reflective else "collage" if scores.get("funny")
               else "geometry" if scores.get("tense") else "wash" if track.get("profile") == "rising"
               else "journal" if scene.get("signals", {}).get("photoCount", 0) >= 3 else "cinema")
@@ -70,7 +76,10 @@ def interpret_scene(scene, labels, story, confirmed=False):
         "strengths": scores,
         "energy": round(energy, 3),
         "warmth": round((1 + red - blue) / 2, 3),
-        "calmness": round(1 - energy, 3),
+        "calmness": calmness,
+        "intimacy": intimacy,
+        "playfulness": playfulness,
+        "tension": tension,
         "intensity": round(max(scores.get("tense", 0), energy), 3),
         "nostalgia": 0.8 if "ностальгия" in labels else 0,
         "valence": 0.3
