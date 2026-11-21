@@ -98,13 +98,22 @@ async function showDay(id, from = null, link = null) {
   if (link) link.setAttribute("aria-busy", "true");
   else main.replaceChildren(element("p", "page-status", text.loadingDay));
   try {
-    const day = await api(`/api/days/${encodeURIComponent(id)}`);
+    const isPreview = new URL(location.href).searchParams.get("preview") === "1";
+    const path = `/api/days/${encodeURIComponent(id)}`;
+    const day = isPreview ? await api(`${path}/scene/preview`, {}) : await api(path);
     if (request !== generation) return;
     const src = await asset(day.cover).catch(() => "");
     if (request !== generation) return;
     const folder = createFolder(day, {
       back:goBack, telegram, overlay:showOverlay,
       updateArchive: (updated) => archive.update(updated),
+      published: () => {
+        const url = new URL(location.href);
+        url.searchParams.delete("preview");
+        history.replaceState(history.state, "", url);
+        archive.refresh();
+        showDay(id);
+      },
       open: (memory, scene, assets, source) => {
         showOverlay((close) => openPlayer(memory, scene, assets, close, {from:source, telegram}), true);
       },

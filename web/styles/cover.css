@@ -6,7 +6,7 @@
   border: 1.5px solid var(--ink);
   border-radius: 17px;
   background: var(--cover-tone);
-  color: var(--ink);
+  color: var(--cover-foreground, var(--ink));
   overflow: hidden;
 }
 .memory-cover::before {
@@ -42,7 +42,7 @@
   border: 1.5px solid var(--ink);
   border-radius: 3px;
   background: var(--cover-accent);
-  color: var(--ink);
+  color: var(--cover-accent-ink, var(--ink));
   font-size: .72rem;
   font-weight: 820;
   line-height: 1.15;
@@ -62,7 +62,7 @@
 }
 .image-wrap { position: relative; overflow: hidden; background: var(--ink); }
 .image-wrap img { width: 100%; height: 100%; object-fit: cover; }
-.cover-photo { width: 100%; height: 100%; border-radius: 1px; }
+.cover-photo { width: 100%; height: 100%; border-radius: 1px; background: var(--cover-shadow, var(--ink)); }
 .cover-photo img { object-position: 50% 42%; }
 [data-tone="tomato"] .cover-photo img { object-position: 50% 38%; }
 [data-tone="lilac"] .cover-photo img { object-position: 52% 42%; }

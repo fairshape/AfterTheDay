@@ -30,6 +30,7 @@ class Day(Base):
     scene: Mapped[dict] = mapped_column(JSON, default=dict)
     comparison: Mapped[dict] = mapped_column(JSON, default=dict)
     cover_style: Mapped[dict] = mapped_column(JSON, default=dict, server_default=text("'{}'"))
+    scene_preview: Mapped[dict] = mapped_column(JSON, default=dict, server_default=text("'{}'"))
 
 
 class UserPreference(Base):

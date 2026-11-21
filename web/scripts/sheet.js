@@ -59,7 +59,8 @@ export function coverEditor(day, commit, onClose) {
   const groups = [
     {key:"sticker", label:copy.sticker, items:art.stickers,
       render: (item) => stickerImage(item.id)},
-    {key:"color", label:copy.color, items:art.colors, render: (item) => {
+    {key:"color", label:copy.color, items:day.coverPalette ?
+      [{id:"auto", label:copy.photoColor, hex:day.coverPalette.field}, ...art.colors] : art.colors, render: (item) => {
       const swatch = element("span", "color-chip");
       swatch.style.backgroundColor = item.hex;
       return swatch;

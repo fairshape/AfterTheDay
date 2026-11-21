@@ -31,7 +31,7 @@ async def start(message: Message, command: CommandObject, diary: Diary, settings
     if command.args == "record":
         day = await asyncio.to_thread(diary.draft, message.from_user.id, create=True)
         today = await asyncio.to_thread(diary.today, message.from_user.id)
-        await show_draft(message, day, timezone_year=today.year)
+        await show_draft(message, day, timezone_year=today.year, webapp_url=settings.webapp_url)
         return
     await send_home(message, message.from_user.id, diary, settings, PROMPTS["welcome"])
     await send_optional_sticker(message, settings.welcome_sticker_id)

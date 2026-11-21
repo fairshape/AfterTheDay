@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     welcome_sticker_id: str = ""
     first_save_sticker_id: str = ""
     demo_mode: bool = False
+    music_storefront: str = Field(default="KZ", pattern=r"^[A-Z]{2}$")
+    catalogue_timeout: float = Field(default=4, gt=0, le=10)
     app_timezone: str = "Asia/Almaty"
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)

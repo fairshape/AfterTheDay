@@ -11,10 +11,12 @@ from aiogram.types import Audio, Document, Message, PhotoSize, Voice
 
 from app.bot.copy import ERRORS, PROMPTS, STATUS
 from app.bot.handlers.draft import summary
+from app.bot.handlers.songs import show_results
+from app.services.song_search import SongSearch
 from app.bot.handlers.start import send_home
 from app.infrastructure.media.storage import AUDIO_LIMIT, PHOTO_LIMIT
 from app.infrastructure.db.models import Day
-from app.services.diary import DETAILS, MAX_STORY, Diary, DraftError, missing_step
+from app.services.diary import DETAILS, MAX_STORY, TRACK_STEPS, Diary, DraftError, missing_step
 from app.services.music import URL_PATTERN, track_link
 from config.settings import Settings
 
@@ -27,7 +29,7 @@ class AlbumReplies:
     def __init__(self):
         self.pending: dict[tuple[int, str], asyncio.Task] = {}
 
-    def schedule(self, message: Message, day_id: str, diary: Diary) -> None:
+    def schedule(self, message: Message, day_id: str, diary: Diary, webapp_url: str = "") -> None:
         owner = message.from_user.id
         key = (owner, message.media_group_id)
         previous = self.pending.get(key)
@@ -39,7 +41,7 @@ class AlbumReplies:
                 await asyncio.sleep(0.85)
                 day = await asyncio.to_thread(diary.get, owner, day_id, include_draft=True)
                 if day and not day.saved_at:
-                    await summary(message, day, diary)
+                    await summary(message, day, diary, webapp_url=webapp_url)
             except TelegramAPIError as exc:
                 logger.warning("Could not send album summary (%s)", type(exc).__name__)
             finally:
@@ -85,7 +87,7 @@ def media_from(message: Message) -> tuple[str | None, Audio | Document | PhotoSi
 
 async def receive_file(message: Message, bot: Bot, diary: Diary, day: Day, kind: str,
                        item: Audio | Document | PhotoSize | Voice) -> str:
-    if kind == "audio" and day.track and day.step != "track_edit":
+    if kind == "audio" and day.track and day.step not in TRACK_STEPS:
         return PROMPTS["ambiguous_track"]
     limit = PHOTO_LIMIT if kind == "photo" else AUDIO_LIMIT
     code = f"{kind}_size"
@@ -113,7 +115,7 @@ async def receive_text(diary: Diary, day: Day, original: str) -> str:
     value = original.strip()
     link = track_link(value)
     if link:
-        if day.track and day.step != "track_edit":
+        if day.track and day.step not in TRACK_STEPS:
             return PROMPTS["ambiguous_track"]
         await asyncio.to_thread(diary.set_track, day, {"kind": "link", "title": urlsplit(link).hostname, "url": link})
     elif URL_PATTERN.fullmatch(value) or value.lower().startswith(("http:", "https:", "www.")):
@@ -124,7 +126,7 @@ async def receive_text(diary: Diary, day: Day, original: str) -> str:
         if not value or len(original) > MAX_STORY:
             raise DraftError("story_size")
         await asyncio.to_thread(diary.edit, day, story=original, step="" if day.step == "story_edit" else day.step)
-    elif day.step == "track_edit" or missing_step(day) == "track":
+    elif day.step in TRACK_STEPS or missing_step(day) == "track":
         return PROMPTS["track_name"]
     else:
         return PROMPTS["ambiguous_text"]
@@ -132,7 +134,8 @@ async def receive_text(diary: Diary, day: Day, original: str) -> str:
 
 
 @router.message()
-async def material(message: Message, bot: Bot, diary: Diary, settings: Settings, albums: AlbumReplies) -> None:
+async def material(message: Message, bot: Bot, diary: Diary, settings: Settings, albums: AlbumReplies,
+                   song_search: SongSearch | None = None) -> None:
     owner = message.from_user.id
     day = await asyncio.to_thread(diary.draft, owner)
     if not day:
@@ -143,7 +146,7 @@ async def material(message: Message, bot: Bot, diary: Diary, settings: Settings,
         if kind and item:
             notice = await receive_file(message, bot, diary, day, kind, item)
             if kind == "photo" and message.media_group_id and not notice:
-                albums.schedule(message, day.id, diary)
+                albums.schedule(message, day.id, diary, settings.webapp_url)
                 return
         elif message.location or message.venue:
             if day.step == "place":
@@ -157,6 +160,11 @@ async def material(message: Message, bot: Bot, diary: Diary, settings: Settings,
             else:
                 notice = PROMPTS["location"]
         elif message.text and not message.text.startswith("/"):
+            query = message.text.strip()
+            if (day.step == "track_search" and song_search
+                    and not query.lower().startswith(("http:", "https:", "www."))):
+                await show_results(message, day, query, song_search)
+                return
             notice = await receive_text(diary, day, message.text)
         else:
             notice = PROMPTS["unsupported"]
@@ -167,6 +175,6 @@ async def material(message: Message, bot: Bot, diary: Diary, settings: Settings,
         notice = ERRORS["download"]
     current = await asyncio.to_thread(diary.draft, owner)
     if current:
-        await summary(message, current, diary, notice)
+        await summary(message, current, diary, notice, webapp_url=settings.webapp_url)
     else:
         await send_home(message, owner, diary, settings, notice or PROMPTS["no_draft"])

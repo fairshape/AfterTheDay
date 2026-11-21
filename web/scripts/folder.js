@@ -1,10 +1,10 @@
 import { memoryCover } from "./art.js";
-import { asset } from "./client.js";
-import { scrapbook as copy, text } from "./copy.js";
+import { api, asset } from "./client.js";
+import { editing, scrapbook as copy, text } from "./copy.js";
 import { button, captionedImage, element } from "./dom.js";
 import { decorate, icon } from "./icons.js";
 import { prepare } from "./player.js";
-import { pinPanel, whyPanel } from "./scene-tools.js";
+import { sceneEditor, whyPanel } from "./scene-tools.js";
 import { coverEditor, photoViewer } from "./sheet.js";
 import { songLink } from "./song-link.js";
 
@@ -15,9 +15,14 @@ function soundtrack(track, telegram) {
   const row = element("div", "song-row");
   const mark = element("span", "song-mark");
   mark.append(icon("music"));
-  row.append(mark, element("p", "track-name", track.title));
+  const label = element("div");
+  label.append(element("p", "track-name", track.title));
+  if (track.artist) label.append(element("p", "microcopy", track.album ?
+    `${track.artist} · ${track.album}` : track.artist));
+  row.append(mark, label);
   card.append(row);
-  if (track.kind === "link") card.append(songLink(track, telegram, "outline-button"));
+  if (track.kind === "link") card.append(songLink(track, telegram, "outline-button"),
+    element("p", "microcopy", editing.linked));
   else {
     const audio = element("audio", "original-audio");
     audio.controls = true;
@@ -32,7 +37,7 @@ function soundtrack(track, telegram) {
   return section;
 }
 
-export function createFolder(initialDay, {back, open, overlay, updateArchive, telegram}, readyCover = "") {
+export function createFolder(initialDay, {back, open, overlay, updateArchive, telegram, published}, readyCover = "") {
   let day = initialDay;
   let selected = 0;
   let ready;
@@ -47,6 +52,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     back();
   });
   header.append(returnLink);
+  if (day.draft) header.append(element("p", "microcopy", editing.draft));
   const hero = element("div", "folder-cover");
   const context = element("div", "folder-context");
   for (const key of ["time", "place"]) {
@@ -58,7 +64,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   const play = decorate(button("", "primary-button", () => {
     if (!ready) return;
     article.querySelectorAll("audio").forEach((audio) => audio.pause());
-    open(day, selected ? day.comparison : day.scene, ready, hero.querySelector(".cover-photo img"));
+    open(day, variants()[selected].scene, ready, hero.querySelector(".cover-photo img"));
   }), "play", text.preparing);
   play.disabled = true;
   const edit = decorate(button("", "outline-button", () => {
@@ -70,7 +76,22 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
       preload();
     }, close));
   }), "edit", copy.edit);
-  actions.append(play, edit);
+  const saveDraft = button(editing.saveDay, "primary-button", async () => {
+    saveDraft.disabled = true;
+    try { await confirm(day.previewToken); }
+    catch (error) {
+      status.textContent = error.status === 409 ? editing.conflict : editing.failure;
+      status.classList.add("error");
+      saveDraft.disabled = false;
+    }
+  });
+  actions.append(play, day.draft ? saveDraft : edit);
+  const linkedSong = element("div", "linked-song-note");
+  if (day.track.kind === "link") {
+    const description = day.track.provider === "itunes" ? editing.linkedApple : editing.linkedExternal;
+    linkedSong.append(element("p", "microcopy", description),
+      songLink(day.track, telegram, "outline-button"));
+  } else linkedSong.hidden = true;
   const status = element("p", "folder-status");
   status.role = "status";
 
@@ -97,24 +118,63 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   photos.append(strip);
 
   const secondary = element("div", "scene-details");
+  const comparison = element("section", "comparison");
+  function variants() {
+    const entries = [{label:day.scene.track.title, scene:day.scene}];
+    if (day.comparison) entries.push({label:day.comparison.track.title, scene:day.comparison});
+    if (day.scene.evenFrames) {
+      entries.push({label:editing.even, scene:{...day.scene, frames:day.scene.evenFrames,
+        soundtrack:{...day.scene.soundtrack, basis:"even"},
+        signals:{...day.scene.signals, finalHold:day.scene.evenFrames.at(-1).seconds}}});
+    }
+    return entries;
+  }
+
+  async function confirm(token) {
+    const updated = await api(`/api/days/${day.id}/scene/confirm`, {token});
+    if (day.draft) {
+      published(updated);
+      return;
+    }
+    day = updated;
+    updateArchive(day);
+    renderHero();
+    renderTools();
+    renderComparison();
+    preload();
+    status.textContent = editing.confirmed;
+  }
+
   function renderTools() {
-    secondary.replaceChildren(whyPanel(selected ? day.comparison : day.scene), pinPanel(day, (updated) => {
-      day = updated;
-      updateArchive(day);
-      renderTools();
-      preload();
-      status.textContent = text.pinSaved;
+    secondary.replaceChildren(whyPanel(variants()[selected].scene), sceneEditor(day, {
+      confirm,
+      preview: async (candidate) => {
+        const prepared = await prepare(candidate, candidate.scene, asset);
+        if (day.draft && article.isConnected) {
+          day = candidate;
+          ready = prepared;
+          renderHero();
+        }
+        return () => {
+          article.querySelectorAll("audio").forEach((audio) => audio.pause());
+          open(candidate, candidate.scene, prepared, hero.querySelector(".cover-photo img"));
+        };
+      },
     }));
   }
 
-  const comparison = element("section", "comparison");
-  if (day.comparison) {
-    comparison.append(element("h2", "reading-title", text.comparison));
+  function renderComparison() {
+    const entries = variants();
+    comparison.hidden = entries.length === 1;
+    comparison.replaceChildren();
+    if (comparison.hidden) return;
+    const label = day.scene.evenFrames ? editing.compare : text.comparison;
+    comparison.append(element("h2", "reading-title", label));
     const list = element("div", "track-switch");
     list.role = "group";
-    list.setAttribute("aria-label", text.comparison);
-    [day.scene, day.comparison].forEach((version, index) => {
-      const switcher = button(version.track.title, "track-choice", () => {
+    list.setAttribute("aria-label", label);
+    entries.forEach(({label}, index) => {
+      const switcher = button(label, "track-choice", () => {
         if (index === selected) return;
         article.querySelectorAll("audio").forEach((audio) => audio.pause());
         selected = index;
@@ -122,19 +182,19 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
         renderTools();
         preload();
       });
-      switcher.setAttribute("aria-pressed", String(index === selected));
+      switcher.setAttribute("aria-pressed", String(selected === index));
       list.append(switcher);
     });
     comparison.append(list);
   }
-  comparison.hidden = !day.comparison;
+  renderComparison();
   reading.append(story, photos, soundtrack(day.track, telegram), comparison, secondary);
-  article.append(header, hero, context, actions, status, reading);
+  article.append(header, hero, context, actions, linkedSong, status, reading);
 
   let generation = 0;
   async function preload() {
     const mark = ++generation;
-    const scene = selected ? day.comparison : day.scene;
+    const scene = variants()[selected].scene;
     ready = null;
     play.disabled = true;
     decorate(play, "play", text.preparing);

@@ -1,5 +1,5 @@
 import { stickerImage, stickerMoment } from "./art.js";
-import { scrapbook as copy, text } from "./copy.js";
+import { editing, scrapbook as copy, text } from "./copy.js";
 import { button, dateLabel, element } from "./dom.js";
 import { decorate } from "./icons.js";
 import { duration, enterPlayer, reducedMotion } from "./motion.js";
@@ -29,10 +29,13 @@ export async function prepare(day, scene, asset) {
 
 export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   const track = scene.track;
-  const intro = assets.images.get(day.cover) && day.cover !== scene.frames[0].asset
+  const precise = scene.version >= 2;
+  const soundtrack = scene.soundtrack;
+  const intro = !precise && assets.images.get(day.cover) && day.cover !== scene.frames[0].asset
     ? [{asset:day.cover, seconds:duration("cover-hold") / 1000, caption:"", transition:.2, motion:{from:1,to:1,x:0,y:0}}] : [];
   const frames = [...intro, ...scene.frames];
-  const total = frames.reduce((sum, frame) => sum + frame.seconds, 0);
+  const total = soundtrack?.duration ?? frames.reduce((sum, frame) => sum + frame.seconds, 0);
+  const audioOffset = soundtrack?.offset ?? track.cue ?? 0;
   const stickerIndex = intro.length + stickerMoment(day.style.sticker, scene.frames);
   const stickerStart = frames.slice(0, stickerIndex).reduce((sum, frame) => sum + frame.seconds, 0) +
     Math.min(.6, frames[stickerIndex].seconds * .26);
@@ -43,6 +46,10 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   const stage = element("div", "stage");
   stage.style.setProperty("--scene-grain", scene.grain);
   const ink = element("div", "stage-ink");
+  if (precise) {
+    ink.style.backgroundColor = scene.palette.shadow;
+    stage.style.setProperty("--scene-accent", scene.palette.accent);
+  }
   const projection = element("div", "projection");
   const layers = [element("img", "frame"), element("img", "frame")];
   for (const layer of layers) { layer.alt = ""; projection.append(layer); }
@@ -64,6 +71,15 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   progress.max = total;
   progress.value = 0;
   progress.setAttribute("aria-label", text.progress);
+  const scrub = element("input", "scene-scrub");
+  scrub.type = "range";
+  scrub.min = 0;
+  scrub.max = total;
+  scrub.step = .01;
+  scrub.value = 0;
+  scrub.setAttribute("aria-label", editing.seek);
+  const progressBar = element("div", "scene-scrubber");
+  progressBar.append(progress, scrub);
   const time = element("span", "player-time");
   const controls = element("div", "scene-controls");
   const pauseButton = button("", "player-icon primary-control", () => {
@@ -79,12 +95,15 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   if (assets.audio) audio.src = assets.audio;
   soundButton.hidden = !assets.audio;
   controls.append(pauseButton, soundButton, replayButton, time);
-  if (track.kind === "link") controls.append(songLink(track, telegram, "player-link"));
+  const linkedSong = element("div", "player-song");
+  if (track.kind === "link") {
+    linkedSong.append(element("p", "", editing.linkedScene), songLink(track, telegram, "player-link"));
+  } else linkedSong.hidden = true;
   const finish = element("div", "player-finish");
   finish.hidden = true;
   finish.append(decorate(button("", "player-action", restart), "replay", copy.again),
     button(copy.toMemory, "player-action secondary", destroy));
-  footer.append(status, finish, progress, controls);
+  footer.append(status, finish, linkedSong, progressBar, controls);
   stage.append(ink, projection, missing, veil, heading, sticker, caption, footer, audio);
 
   let elapsed = 0;
@@ -97,9 +116,11 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   let currentIndex = -1;
   let missingAudio = !!track.asset && !assets.audio;
   let closed = false;
+  let buffering = false;
+  const useAudioClock = () => precise && !!assets.audio && !missingAudio && !audioFailed;
 
   function showAudioStatus() {
-    status.textContent = missingAudio ? text.unavailableAudio : audioFailed ? text.playbackSound : "";
+    status.textContent = missingAudio ? text.unavailableAudio : audioFailed ? text.playbackSound : buffering && running ? editing.buffering : "";
     decorate(soundButton, muted ? "muted" : "volume");
     soundButton.setAttribute("aria-label", muted ? text.soundOn : text.soundOff);
   }
@@ -117,8 +138,9 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   function draw(seconds) {
     let offset = 0;
     let index = 0;
-    while (index < frames.length - 1 && seconds >= offset + frames[index].seconds) {
-      offset += frames[index++].seconds;
+    while (index < frames.length - 1 && seconds >= (frames[index + 1].start ?? offset + frames[index].seconds)) {
+      offset = frames[index + 1].start ?? offset + frames[index].seconds;
+      index++;
     }
     const frame = frames[index];
     const prior = frames[index - 1];
@@ -136,13 +158,20 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
       layers[1].hidden = !currentSource;
       missing.hidden = !!currentSource;
       caption.textContent = frame.caption;
-      caption.hidden = !frame.caption;
+      for (const [layer, shot] of [[layers[0], prior], [layers[1], frame]]) {
+        layer.style.objectFit = shot?.crop?.fit ?? "";
+        layer.style.objectPosition = shot?.crop ? `${shot.crop.x*100}% ${shot.crop.y*100}%` : "";
+      }
       currentIndex = index;
     }
     layers[0].style.opacity = layers[1].hidden || blend >= 1 ? 0 : 1;
     layers[1].style.opacity = blend;
     layers[1].style.transform = transform(frame, Math.min(1, local / frame.seconds));
+    const captionOut = frame.captionOut ?? frame.seconds;
+    caption.hidden = !frame.caption || local < (frame.captionIn ?? 0) || (local > captionOut && index !== frames.length - 1);
     progress.value = seconds;
+    scrub.value = seconds;
+    scrub.setAttribute("aria-valuetext", timestamp(seconds));
     time.textContent = `${timestamp(seconds)} / ${timestamp(total)}`;
 
     const stickerTime = seconds - stickerStart;
@@ -156,31 +185,50 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
     }
   }
 
+  function finishScene() {
+    elapsed = total;
+    draw(total);
+    pause();
+    finishTimer = setTimeout(() => { finish.hidden = false; }, duration("final-hold"));
+  }
+
   function tick(now) {
     if (!running) return;
-    elapsed = Math.min(total, (now - started) / 1000);
+    elapsed = Math.min(total, Math.max(0, useAudioClock() ? audio.currentTime - audioOffset : (now - started) / 1000));
     draw(elapsed);
-    if (elapsed >= total) {
-      pause();
-      finishTimer = setTimeout(() => { finish.hidden = false; }, duration("final-hold"));
-    } else animation = requestAnimationFrame(tick);
+    if (elapsed >= total - .008) finishScene();
+    else animation = requestAnimationFrame(tick);
   }
 
   function launchAudio() {
-    if (!assets.audio || muted || missingAudio) return;
-    const playbackTime = (track.cue || 0) + elapsed;
+    if (!assets.audio || missingAudio || (!precise && muted)) return;
+    const playbackTime = audioOffset + elapsed;
     if (Number.isFinite(audio.duration) && playbackTime >= audio.duration) return;
-    audio.currentTime = playbackTime;
+    if (Math.abs(audio.currentTime - playbackTime) > .03) audio.currentTime = playbackTime;
     audio.play().then(() => {
       audioFailed = false;
       showAudioStatus();
     }).catch((error) => {
       if (error.name === "AbortError" || !running || closed) return;
       audioFailed = true;
+      buffering = false;
+      started = performance.now() - elapsed * 1000;
       muted = true;
+      audio.muted = true;
       showAudioStatus();
     });
   }
+
+  scrub.addEventListener("input", () => {
+    clearTimeout(finishTimer);
+    finish.hidden = true;
+    elapsed = Math.min(total, Number(scrub.value));
+    if (assets.audio && !missingAudio) audio.currentTime = audioOffset + elapsed;
+    started = performance.now() - elapsed * 1000;
+    draw(elapsed);
+    if (elapsed >= total) finishScene();
+    else if (!running) pause();
+  });
 
   function play() {
     if (running || closed) return;
@@ -196,6 +244,8 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
     running = false;
     cancelAnimationFrame(animation);
     audio.pause();
+    buffering = false;
+    showAudioStatus();
     decorate(pauseButton, elapsed >= total ? "replay" : "play");
     pauseButton.setAttribute("aria-label", elapsed >= total ? copy.again : text.resume);
   }
@@ -212,7 +262,10 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   function toggleSound() {
     muted = !muted;
     showAudioStatus();
-    if (muted) audio.pause();
+    if (precise) {
+      audio.muted = muted;
+      if (!muted && running && audioFailed) launchAudio();
+    } else if (muted) audio.pause();
     else if (running) launchAudio();
   }
 
@@ -247,8 +300,23 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
     layers[0].hidden = true;
     missing.hidden = false;
   });
+  audio.addEventListener("waiting", () => {
+    if (useAudioClock()) {
+      buffering = true;
+      showAudioStatus();
+    }
+  });
+  audio.addEventListener("playing", () => {
+    buffering = false;
+    showAudioStatus();
+  });
+  audio.addEventListener("ended", () => {
+    if (running && useAudioClock()) finishScene();
+  });
   audio.addEventListener("error", () => {
     if (!closed && assets.audio) {
+      started = performance.now() - elapsed * 1000;
+      buffering = false;
       missingAudio = true;
       soundButton.hidden = true;
       showAudioStatus();

@@ -15,6 +15,7 @@ from app.services.scene import build_scene
 MAX_PHOTOS = 10
 MAX_STORY = 12_000
 DEMO_OWNER = 0
+TRACK_STEPS = {"track_edit", "track_search", "track_link", "track_file"}
 DETAILS = {"date", "time", "place", "weather", "mood", "key_detail", "favorite", "cue"}
 
 
@@ -181,7 +182,7 @@ class Diary:
             track = {**track, **self.media.ingest(day.id, data, "audio")}
         asset_id = track.get("id")
         try:
-            self.edit(day, track=track, step="" if day.step in {"track_edit", "profile", "cue"} else day.step)
+            self.edit(day, track=track, step="" if day.step in TRACK_STEPS | {"profile", "cue"} else day.step)
         except Exception:
             if asset_id:
                 self.media.remove(day.id, asset_id)
@@ -216,12 +217,13 @@ class Diary:
 
         # Generation completes before publishing. A revision check prevents publishing inputs
         # that changed while building, and the draft ID becomes the permanent day ID.
-        scene = build_scene(self.media, day.id, day.story, day.photos, day.track, day.details)
+        scene = build_scene(self.media, day.id, day.story, day.photos, day.track, day.details,
+                            even_comparison=owner == DEMO_OWNER and bool(comparison))
         alternate = build_scene(self.media, day.id, day.story, day.photos, comparison,
                                 day.details, base=scene) if comparison else {}
         try:
             return self.edit(day, title=scene["title"], scene=scene, comparison=alternate,
-                             step="", saved_at=datetime.now(timezone.utc))
+                             step="", scene_preview={}, saved_at=datetime.now(timezone.utc))
         except DraftError:
             existing = self.get(owner, day_id)
             if existing is not None:
@@ -232,7 +234,8 @@ class Diary:
         day = self.get(owner, day_id)
         if not day:
             raise DraftError("missing_day")
-        if style and (style["color"] not in COLORS or style["sticker"] not in STICKERS
+        if style and ((style["color"] == "auto" and not day.scene.get("palette", {}).get("field"))
+                      or style["color"] not in {*COLORS, "auto"} or style["sticker"] not in STICKERS
                       or not any(photo["id"] == style["photo"] for photo in day.photos)):
             raise DraftError("invalid_cover")
         with self.sessions.begin() as session:
@@ -248,26 +251,72 @@ class Diary:
             return session.scalar(select(Day.id).where(Day.owner_id == owner, Day.saved_at.is_not(None))
                                   .order_by(Day.saved_at, Day.id).limit(1))
 
-    def pin(self, owner: int, day_id: str, photo_id: str | None, quote: str | None) -> Day:
-        day = self.get(owner, day_id)
+    def preview_scene(self, owner: int, day_id: str, choices: dict) -> tuple[Day, dict]:
+        day = self.get(owner, day_id, include_draft=True)
         if not day:
-            raise DraftError("stale")
+            raise DraftError("missing_day")
+        if missing_step(day):
+            raise DraftError("incomplete")
         details = dict(day.details)
-        if photo_id is not None:
+        track = dict(day.track)
+        if "photo" in choices:
+            photo_id = choices["photo"]
             if photo_id and not any(photo["id"] == photo_id for photo in day.photos):
                 raise DraftError("invalid_pin")
-            details["favorite_photo"] = photo_id
-        if quote is not None:
+            details["favorite_photo"] = photo_id or ""
+        if "cue" in choices:
+            if track["kind"] != "file":
+                raise DraftError("cue_link")
+            cue = choices["cue"]
+            if cue is None:
+                track.pop("cue", None)
+            elif 0 <= cue < track["duration"]:
+                track["cue"] = cue
+            else:
+                raise DraftError("cue")
+        if "quote" in choices:
+            quote = choices["quote"] or ""
             if quote and " ".join(quote.casefold().split()) not in " ".join(day.story.casefold().split()):
                 raise DraftError("invalid_pin")
             details["key_detail"] = quote
-        scene = build_scene(self.media, day.id, day.story, day.photos, day.track, details, base=day.scene)
+
+        scene = build_scene(self.media, day.id, day.story, day.photos, track, details, base=day.scene or None,
+                            even_comparison=owner == DEMO_OWNER and bool(day.comparison))
         comparison = (build_scene(self.media, day.id, day.story, day.photos, day.comparison["track"],
                                   details, base=scene) if day.comparison else {})
+        candidate = {"token": uuid4().hex, "revision": day.revision, "scene": scene, "comparison": comparison,
+                     "details": details, "track": track}
         with self.sessions.begin() as session:
-            result = session.execute(update(Day).where(Day.id == day.id, Day.owner_id == owner,
-                       Day.revision == day.revision, Day.saved_at.is_not(None))
-                       .values(details=details, scene=scene, comparison=comparison, revision=day.revision + 1))
+            result = session.execute(update(Day).where(Day.id == day_id, Day.owner_id == owner,
+                         Day.revision == day.revision).values(scene_preview=candidate))
+            if result.rowcount != 1:
+                raise DraftError("stale")
+        return day, candidate
+
+    def commit_preview(self, owner: int, day_id: str, token: str) -> Day:
+        day = self.get(owner, day_id, include_draft=True)
+        if not day:
+            raise DraftError("missing_day")
+        pending = day.scene_preview
+        if pending.get("token") != token or pending.get("revision") != day.revision:
+            raise DraftError("stale")
+        with self.sessions.begin() as session:
+            result = session.execute(update(Day).where(Day.id == day_id, Day.owner_id == owner,
+                         Day.revision == day.revision, Day.scene_preview["token"].as_string() == token)
+                         .values(scene=pending["scene"], comparison=pending["comparison"], scene_preview={},
+                                 details=pending["details"], track=pending["track"], title=pending["scene"]["title"],
+                                 saved_at=day.saved_at or datetime.now(timezone.utc), step="", revision=day.revision+1))
             if result.rowcount != 1:
                 raise DraftError("stale")
         return self.get(owner, day_id)
+
+    def pin(self, owner: int, day_id: str, photo_id: str | None, quote: str | None) -> Day:
+        if self.get(owner, day_id) is None:
+            raise DraftError("stale")
+        choices = {}
+        if photo_id is not None:
+            choices["photo"] = photo_id
+        if quote is not None:
+            choices["quote"] = quote
+        _, candidate = self.preview_scene(owner, day_id, choices)
+        return self.commit_preview(owner, day_id, candidate["token"])

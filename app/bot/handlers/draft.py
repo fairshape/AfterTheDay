@@ -28,9 +28,9 @@ logger = logging.getLogger(__name__)
 EDIT_MODES = {"story_edit", "photo_edit", "track_edit", "profile"}
 
 
-async def summary(message: Message, day: Day, diary: Diary, notice: str = "", *, replace: bool = False) -> None:
+async def summary(message: Message, day: Day, diary: Diary, notice: str = "", *, replace: bool = False, webapp_url: str = "") -> None:
     await show_draft(message, day, notice, timezone_year=(await asyncio.to_thread(diary.today, day.owner_id)).year,
-                     replace=replace)
+                     replace=replace, webapp_url=webapp_url)
 
 
 @router.message(Command("cancel"))
@@ -99,13 +99,13 @@ async def draft_action(callback: CallbackQuery, diary: Diary, settings: Settings
             await asyncio.to_thread(diary.update_detail, day, "favorite", value)
         elif operation == "remove":
             await asyncio.to_thread(diary.remove_photo, day, value)
-        await summary(message, day, diary, replace=True)
+        await summary(message, day, diary, replace=True, webapp_url=settings.webapp_url)
     except DraftError as exc:
         # Refresh after a stale operation so buttons refer to the latest draft.
         current = await asyncio.to_thread(diary.draft, owner)
         error = ERRORS.get(str(exc), ERRORS["stale"])
         if current:
-            await summary(message, current, diary, error, replace=True)
+            await summary(message, current, diary, error, replace=True, webapp_url=settings.webapp_url)
         else:
             await send_home(message, owner, diary, settings, error)
 
@@ -132,7 +132,7 @@ async def save(callback: CallbackQuery, diary: Diary, settings: Settings, albums
             notice = ERRORS["build"]
         draft = await asyncio.to_thread(diary.draft, owner)
         if draft:
-            await summary(message, draft, diary, notice)
+            await summary(message, draft, diary, notice, webapp_url=settings.webapp_url)
         else:
             await send_home(message, owner, diary, settings, notice)
         return

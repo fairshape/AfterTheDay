@@ -31,7 +31,17 @@ def make_score(profile: str) -> bytes:
                          + 0.12 * sin(phase * 3.013) * exp(-t * 7))
             samples[start_index + index] += volume * attack * tail * voice
 
-    if profile == "calm":
+    if profile == "park":
+        for when, notes, level in (
+            (0.0, (45, 57, 60), .085), (1.2, (64,), .095), (2.4, (59, 67), .10),
+            (3.85, (48, 55, 64), .21), (4.95, (62, 67), .11), (6.25, (60, 64), .12),
+            (7.45, (57, 64), .10), (8.95, (41, 53, 60), .17),
+            (10.7, (60, 65), .066), (12.1, (57,), .042), (14.3, (53,), .027),
+            (18.0, (45, 52, 57), .062), (21.4, (52, 64), .052),
+        ):
+            for index, midi in enumerate(notes):
+                note(when + index * .016, 4.0, midi, level / max(1, len(notes)) ** .5)
+    elif profile == "calm":
         for bar in range(7):
             chord = chord_progression[bar % 4]
             for offset, midi in ((0, chord[0]), (0.55, chord[2]), (1.55, chord[3] + 12), (2.76, chord[1] + 12)):

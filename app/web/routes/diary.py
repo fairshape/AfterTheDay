@@ -22,6 +22,18 @@ class PinRequest(BaseModel):
     quote: str | None = Field(default=None, max_length=108)
 
 
+class ScenePreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    photo: str | None = Field(default=None, max_length=32)
+    quote: str | None = Field(default=None, max_length=108)
+    cue: float | None = Field(default=None, ge=0, le=7200)
+
+
+class ConfirmSceneRequest(BaseModel):
+    token: str = Field(pattern=r"^[a-f0-9]{32}$")
+
+
 class CoverStyle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -74,7 +86,7 @@ def media_url(day: Day, asset_id: str) -> str:
 
 
 def public_track(day: Day, track: dict) -> dict:
-    keys = ("kind", "title", "url", "duration", "cue")
+    keys = ("kind", "title", "url", "duration", "cue", "artist", "album", "provider", "track_id")
     result = {key: track[key] for key in keys if key in track}
     if track.get("id"):
         result["asset"] = media_url(day, track["id"])
@@ -82,23 +94,33 @@ def public_track(day: Day, track: dict) -> dict:
 
 
 def public_scene(day: Day, scene: dict) -> dict:
-    return {**scene, "track": public_track(day, scene["track"]),
-            "frames": [{**frame, "asset": media_url(day, frame["asset"])} for frame in scene["frames"]]}
+    result = {**scene, "track": public_track(day, scene["track"])}
+    for key in ("frames", "evenFrames"):
+        if key in scene:
+            result[key] = [{**frame, "asset": media_url(day, frame["asset"])} for frame in scene[key]]
+    return result
 
 
-def card(day: Day) -> dict:
-    style = day.cover_style or original_cover(day)
-    return {"id": day.id, "title": day.title, "date": day.memory_date.isoformat(),
-            "cover": media_url(day, style["photo"]), "style": style, "place": day.details.get("place")}
+def card(day: Day, scene: dict | None = None) -> dict:
+    scene = scene or day.scene
+    style = day.cover_style or original_cover(day, scene)
+    return {"id": day.id, "title": day.title or scene["title"], "date": day.memory_date.isoformat(),
+            "cover": media_url(day, style["photo"]), "style": style, "place": day.details.get("place"),
+            "coverPalette": scene["palette"] if scene.get("palette", {}).get("field") else None}
 
 
-def folder(day: Day) -> dict:
+def folder(day: Day, candidate: dict | None = None) -> dict:
+    scene = candidate["scene"] if candidate else day.scene
+    comparison = candidate["comparison"] if candidate else day.comparison
+    details = candidate["details"] if candidate else day.details
+    track = candidate["track"] if candidate else day.track
     return {
-        **card(day), "originalStyle": original_cover(day), "photoColor": suggest_color(day), "story": day.story, "details": day.details, "track": public_track(day, day.track),
+        **card(day, scene), "originalStyle": original_cover(day, scene), "photoColor": suggest_color(day, scene),
+        "story": day.story, "details": details, "track": public_track(day, track),
         "photos": [{"id": photo["id"], "src": media_url(day, photo["id"]), "caption": photo["caption"]}
                    for photo in day.photos],
-        "scene": public_scene(day, day.scene),
-        "comparison": public_scene(day, day.comparison) if day.comparison else None,
+        "scene": public_scene(day, scene), "comparison": public_scene(day, comparison) if comparison else None,
+        "draft": day.saved_at is None, "previewToken": candidate["token"] if candidate else None,
     }
 
 
@@ -125,6 +147,28 @@ def cover(day_id: UUID, body: CoverRequest, owner: int = Depends(owner_for), dia
         raise HTTPException(status, str(exc)) from exc
 
 
+@router.post("/days/{day_id}/scene/preview")
+def scene_preview(day_id: UUID, body: ScenePreviewRequest, owner: int = Depends(owner_for),
+                  diary: Diary = Depends(diary_for)):
+    try:
+        day, candidate = diary.preview_scene(owner, str(day_id), body.model_dump(exclude_unset=True))
+        return folder(day, candidate)
+    except DraftError as exc:
+        status = 404 if str(exc) == "missing_day" else 409 if str(exc) in {"stale", "incomplete"} else 422
+        raise HTTPException(status, str(exc)) from exc
+    except (OSError, ValueError) as exc:
+        raise HTTPException(409, "asset_unavailable") from exc
+
+
+@router.post("/days/{day_id}/scene/confirm")
+def confirm_preview(day_id: UUID, body: ConfirmSceneRequest, owner: int = Depends(owner_for),
+                    diary: Diary = Depends(diary_for)):
+    try:
+        return folder(diary.commit_preview(owner, str(day_id), body.token))
+    except DraftError as exc:
+        raise HTTPException(404 if str(exc) == "missing_day" else 409, str(exc)) from exc
+
+
 @router.post("/days/{day_id}/pin")
 def pin(day_id: UUID, body: PinRequest, owner: int = Depends(owner_for), diary: Diary = Depends(diary_for)):
     if not diary.get(owner, str(day_id)):
@@ -140,8 +184,8 @@ def pin(day_id: UUID, body: PinRequest, owner: int = Depends(owner_for), diary: 
 
 @router.get("/days/{day_id}/media/{asset_id}")
 def media(day_id: UUID, asset_id: str, owner: int = Depends(owner_for), diary: Diary = Depends(diary_for)):
-    day = diary.get(owner, str(day_id))
-    if day is None:
+    day = diary.get(owner, str(day_id), include_draft=True)
+    if day is None or (not day.saved_at and day.scene_preview.get("revision") != day.revision):
         raise HTTPException(404, "asset")
     assets = [*day.photos, day.track, (day.comparison or {}).get("track", {})]
     match = next((asset for asset in assets if asset.get("id") == asset_id), None)

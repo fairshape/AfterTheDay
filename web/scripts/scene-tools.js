@@ -1,6 +1,6 @@
 import { api } from "./client.js";
-import { text } from "./copy.js";
-import { element } from "./dom.js";
+import { editing, text } from "./copy.js";
+import { button, element } from "./dom.js";
 
 function expandable(label) {
   const panel = element("details", "disclosure");
@@ -16,7 +16,14 @@ export function whyPanel(scene) {
     : signals.focus === "pin" ? (signals.pinText ? text.whyPin(signals.pinText) : text.whyPhotoPin)
     : text.whyExcerpt(signals.story);
   const ratio = (number) => new Intl.NumberFormat("ru").format(number);
-  const descriptions = [
+  const measured = scene.soundtrack?.analysis?.cutCues || [];
+  const descriptions = scene.version === 2 ? [
+    [text.whyWords, editing.hold(signals.story, ratio(signals.finalHold))],
+    [text.whyPhotos, scene.palette.source === "photo" ? editing.palette : editing.curated],
+    [text.whyMusic, scene.soundtrack.basis === "even" ? editing.evenBasis : measured.length ?
+      editing.measured(measured.map((cue) => ratio(cue.audioTime)).join(", ")) :
+      `${editing.fallback} ${text.profile[signals.profile] || ""}.`],
+  ] : [
     [text.whyWords, words],
     [text.whyPhotos, text.whyPalette(signals.photoCount)],
     [text.whyMusic, text.whyRhythm(text.profile[signals.profile], text.source[signals.source],
@@ -40,47 +47,129 @@ export function whyPanel(scene) {
   return panel;
 }
 
-export function pinPanel(day, refresh) {
-  const panel = expandable(text.pinHeading);
+export function sceneEditor(day, {preview, confirm}) {
+  const panel = expandable(editing.title);
   const form = element("form", "pin-form");
+  const photoLabel = element("label", "pin-field", editing.main);
+  const photo = element("select");
+  photo.setAttribute("aria-label", editing.main);
+  const automatic = element("option", "", editing.automatic);
+  automatic.value = "";
+  photo.append(automatic);
+  day.photos.forEach((item, index) => {
+    const option = element("option", "", text.imageAlt(index + 1));
+    option.value = item.id;
+    photo.append(option);
+  });
+  photo.value = day.details.favorite_photo || "";
+  photoLabel.append(photo);
+
   const phraseLabel = element("label", "pin-field", text.pinLabel);
   const phrase = element("input");
   phrase.maxLength = 108;
-  const savedPhrase = day.details.key_detail || "";
-  phrase.defaultValue = day.story.toLocaleLowerCase("ru").includes(savedPhrase.toLocaleLowerCase("ru")) ? savedPhrase : "";
+  const existing = day.details.key_detail || "";
+  phrase.defaultValue = day.story.toLocaleLowerCase("ru").includes(existing.toLocaleLowerCase("ru")) ? existing : "";
   phraseLabel.append(phrase);
-  const photoLabel = element("label", "pin-field", text.pinFavorite);
-  const select = element("select");
-  const blank = element("option", "", text.pinNoPhoto);
-  blank.value = "";
-  select.append(blank);
-  day.photos.forEach((photo, index) => {
-    const option = element("option", "", text.imageAlt(index + 1));
-    option.value = photo.id;
-    select.append(option);
-  });
-  select.value = day.details.favorite_photo || "";
-  photoLabel.append(select);
-  const save = element("button", "outline-button", text.pinSave);
-  save.type = "submit";
+  form.append(photoLabel, phraseLabel);
+
+  const seconds = new Intl.NumberFormat("ru", {maximumFractionDigits:2});
+  let cue;
+  let cueChanged = false;
+  if (day.track.kind === "file") {
+    const cueLabel = element("label", "pin-field", editing.cue);
+    cue = element("input");
+    cue.type = "number";
+    cue.setAttribute("aria-label", editing.cue);
+    cue.min = 0;
+    cue.step = "any";
+    cue.max = Math.max(0, day.track.duration - Math.min(1, day.track.duration));
+    cue.value = day.track.cue ?? "";
+    cue.placeholder = String(day.scene.soundtrack?.offset ?? 0);
+    cue.addEventListener("input", () => { cueChanged = true; });
+    cueLabel.append(cue, element("span", "microcopy", editing.excerptHint));
+    form.append(cueLabel);
+    if (day.scene.soundtrack) {
+      const {offset, duration} = day.scene.soundtrack;
+      form.append(element("p", "microcopy", editing.excerpt(seconds.format(offset), seconds.format(offset+duration))));
+    }
+    const alternatives = day.scene.soundtrack?.alternatives || [];
+    if (alternatives.length > 1) {
+      const options = element("div", "track-switch");
+      options.setAttribute("aria-label", editing.options);
+      for (const start of alternatives) {
+        options.append(button(`${new Intl.NumberFormat("ru").format(start)} с`, "track-choice", () => {
+          cue.value = start;
+          cueChanged = true;
+          invalidate();
+        }));
+      }
+      form.append(options);
+    }
+  }
+
+  const build = element("button", "outline-button", editing.generate);
+  build.type = "submit";
   const status = element("p", "microcopy");
   status.role = "status";
-  form.append(element("p", "microcopy", text.pinHint), phraseLabel, photoLabel, save, status);
+  const result = element("div", "track-switch");
+  form.append(build, status, result);
+  const proposed = element("p", "microcopy");
+  form.insertBefore(proposed, result);
+  let changes = 0;
+  function invalidate() {
+    changes++;
+    if (result.childElementCount || build.disabled) {
+      status.textContent = editing.changed;
+      proposed.textContent = "";
+      result.replaceChildren();
+    }
+  }
+  form.addEventListener("input", invalidate);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    save.disabled = true;
-    status.textContent = "";
+    build.disabled = true;
+    status.classList.remove("error");
+    status.textContent = editing.building;
+    result.replaceChildren();
+    proposed.textContent = "";
+    const started = changes;
+    const choices = {photo:photo.value};
+    if (phrase.value || phrase.defaultValue || !existing) choices.quote = phrase.value.trim();
+    if (cue && cueChanged) choices.cue = cue.value === "" ? null : cue.valueAsNumber;
     try {
-      const payload = { photo: select.value };
-      if (phrase.value || phrase.defaultValue || !savedPhrase) payload.quote = phrase.value.trim();
-      const updated = await api(`/api/days/${day.id}/pin`, payload);
-      if (form.isConnected) refresh(updated);
+      const candidate = await api(`/api/days/${day.id}/scene/preview`, choices);
+      if (started !== changes || !form.isConnected) return;
+      const prepared = await preview(candidate);
+      if (started !== changes || !form.isConnected) return;
+      if (candidate.track.kind === "file") {
+        const {offset,duration} = candidate.scene.soundtrack;
+        proposed.textContent = editing.proposedExcerpt(seconds.format(offset), seconds.format(offset+duration));
+      }
+      status.textContent = editing.pending;
+      const watch = button(editing.watch, "outline-button", prepared);
+      const save = button(day.draft ? editing.saveDay : editing.save, "primary-button", async () => {
+        save.disabled = true;
+        try { await confirm(candidate.previewToken); }
+        catch (error) {
+          status.textContent = error.status === 409 ? editing.conflict : editing.failure;
+          status.classList.add("error");
+          save.disabled = false;
+        }
+      });
+      result.append(watch, save);
+      if (!day.draft) result.append(button(editing.discard, "text-button", () => {
+        status.textContent = editing.discarded;
+        proposed.textContent = "";
+        result.replaceChildren();
+        build.focus();
+      }));
     } catch (error) {
-      status.textContent = error.message === "invalid_pin" ? text.pinInvalid : text.pinFailed;
-      save.disabled = false;
+      status.textContent = error.message === "invalid_pin" ? text.pinInvalid : editing.failure;
+      status.classList.add("error");
+    } finally {
+      build.disabled = false;
     }
   });
   panel.append(form);
   return panel;
 }
-

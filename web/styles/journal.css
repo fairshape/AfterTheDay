@@ -371,3 +371,16 @@ svg { flex: 0 0 auto; width: 22px; height: 22px; display: block; }
 .memory-details > div { display: grid; grid-template-columns: 88px 1fr; gap: 8px; }
 .memory-details dt { font-weight: 700; }
 .memory-details dd { overflow-wrap: anywhere; }
+
+.song-card > .microcopy { margin-top: 5px; }
+.folder-header > .microcopy { margin-top: 7px; }
+.pin-form .track-switch { width: 100%; }
+
+.linked-song-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}

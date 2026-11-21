@@ -15,3 +15,12 @@ The title and captions come from the author’s own words. A favorite photo or a
 - The project implements the Telegram capture, persistent drafts, private archive and media API, visual rules, browser playback, and demo comparison. It uses Telegram’s Mini App SDK, aiogram, FastAPI, SQLAlchemy, Alembic, Pillow, Mutagen, and standard browser APIs.
 
 - The original sticker drawings are in [web/art/stickers](../web/art/stickers/). Their Russian labels and story cues share [one catalog](../web/art/catalog.json).
+
+
+## Autumn example media
+
+The three assets `demo/photos/park-1.jpg` through `park-3.jpg` were created with built-in OpenAI ImageGen and cropped from a contact sheet. They are fictional supplied images in the demo, available to the same scene builder as any user's uploaded photographs.
+
+> Photorealistic editorial 35mm snapshots of one fictional autumn park walk for a private film diary. Make a landscape contact sheet split into three equal-width vertical portrait photographs, perfectly straight divisions, no gutters, no frames. Left: wide empty leaf-strewn park path receding through yellow trees beneath an overcast cool blue-grey sky. Middle: intimate close-up of two hands around a simple steaming cocoa cup with a knit sleeve, yellow leaves out of focus behind, muted amber sunlight. Right: wide unoccupied park bench with two paper cups on one end, still golden leaves and cooler shadows suggesting a conversation just finished. Restrained natural colors, soft daylight, subtle film grain. No text, logos, collage overlap, or borders.
+
+“Тепло в ладонях” and the comparison score are synthesized by the project in `demo/score.py`. The Apple catalogue supplies links and descriptive metadata. All sample synchronized playback uses the project's original scores.

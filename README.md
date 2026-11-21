@@ -41,13 +41,27 @@ The diary’s **Записать день** action opens the bot’s `/start rec
 - SQLite and uploaded files live under `DATA_DIR/private`; back up that whole directory as one unit with the app stopped. Demo data lives under `DATA_DIR/demo`. An interrupted write can leave unreferenced bytes in a day directory. The API only serves media referenced by a published day belonging to the signed-in Telegram user.
 - The session starts with Telegram init data up to 10 minutes old and lasts 8 hours in the open page. On expiry, reopen the Mini App from the bot. Media requests use the same authenticated session, and streaming links never pass through a backend fetch. [Telegram Mini Apps documentation](https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app)
 
+## Music search and editing
+
+**Найти песню** sends the typed title and artist to the configured iTunes storefront. Set `MUSIC_STOREFRONT` to a two-letter country code (default `KZ`). Results use catalogue metadata and official links. Upload a local audio file to use its waveform for editing. [Apple iTunes Search API](https://performance-partners.apple.com/search-api)
+
+Install FFmpeg on the server PATH for local analysis of uploaded audio. The app starts and plays files without FFmpeg by using track-character pacing. Set `CATALOGUE_TIMEOUT` to cap the catalogue request time. Decoder limits are in `app/infrastructure/audio/analysis.py`. Analysis stays on the server and scans up to 75 seconds from the start or manual cue. It estimates pulse and derives onset and energy-change candidates. These signals guide eligible cuts. A manual start is bounded to leave up to 1.2 seconds of playable audio at the end of a short excerpt. [FFmpeg documentation](https://ffmpeg.org/ffmpeg.html)
+
+A ready draft offers **Предпросмотр** in Telegram alongside the direct save action. In the Mini App, **Настроить монтаж** lets the owner change the main photo, choose a short quote, and test a music start. **Сохранить монтаж** publishes the exact pending version. Older scenes play in their original format. Manual cover colors and stickers take priority over suggestions.
+
+**Осенний парк и какао** has two original soundtracks and **Ровный монтаж**, which uses the first track and the same excerpt, text and photos. **Ночь в офисе перед сдачей** shows a fast progression settling on **Отправили**. Existing local demo entries keep their saved versions, and the new examples are added when their seed dates are absent.
+
 ## Change the prototype
 
 | Change | Where |
 | --- | --- |
 | Bot wording | `app/bot/copy.py` and draft status phrases in `app/bot/summaries.py` |
 | Mini App wording | `web/scripts/copy.js` and the shell in `web/index.html` |
-| Scene rules and track interpretation | `app/services/scene.py` and `app/services/music.py` |
+| Catalogue provider and ranking | `app/infrastructure/catalogue/itunes.py` and `app/services/song_search.py` |
+| Caption progression and shot assembly | `app/services/story.py` and `app/services/scene.py` |
+| Photo palette roles and weighting | `app/services/palette.py` |
+| Excerpt length and cut timing | `app/services/timing.py` |
+| Audio decode limits and signal analysis | `app/infrastructure/audio/analysis.py` |
 | Palette and appearance | `web/styles/tokens.css`, `web/art/catalog.json`, and `web/styles/cover.css` |
 | Sticker rules and original artwork | `web/art/catalog.json` and `web/art/stickers/` |
 | Animation timing and transitions | `web/styles/tokens.css`, `web/styles/motion.css`, `web/scripts/motion.js`, and `app/services/scene.py` |

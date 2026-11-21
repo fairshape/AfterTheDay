@@ -13,8 +13,11 @@ def rgb(value: str) -> tuple[int, int, int]:
     return tuple(int(value[index:index+2], 16) for index in (1, 3, 5))
 
 
-def suggest_color(day: Day) -> str:
-    accent = rgb(day.scene.get("palette", {}).get("accent", "#AA89FF"))
+def suggest_color(day: Day, scene: dict | None = None) -> str:
+    palette = (scene or day.scene).get("palette", {})
+    if palette.get("field"):
+        return "auto"
+    accent = rgb(palette.get("accent", "#AA89FF"))
     return min(COLORS, key=lambda key: sum((a - b) ** 2 for a, b in zip(accent, rgb(COLORS[key]))))
 
 
@@ -24,12 +27,12 @@ def suggest_sticker(day: Day) -> str:
     return next((name for name, pattern in STICKERS.items() if pattern.search(material)), "spark")
 
 
-def original_cover(day: Day) -> dict[str, str]:
+def original_cover(day: Day, scene: dict | None = None) -> dict[str, str]:
     direction = day.details.get("_art_direction", {})
     color = direction.get("color")
     sticker = direction.get("sticker")
     return {
-        "color": color if color in COLORS else suggest_color(day),
+        "color": color if color in COLORS else suggest_color(day, scene),
         "sticker": sticker if sticker in STICKERS else suggest_sticker(day),
-        "photo": day.scene.get("cover") or day.photos[0]["id"],
+        "photo": (scene or day.scene).get("cover") or day.photos[0]["id"],
     }

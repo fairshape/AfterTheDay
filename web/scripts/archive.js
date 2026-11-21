@@ -160,6 +160,7 @@ export function createArchive({ open, record, toggle }) {
 
   return {
     page,
+    refresh: load,
     imageFor(id) { return page.querySelector(`[data-memory="${CSS.escape(id || "")}"] .cover-photo img`); },
     update(day) {
       const index = (items) => items?.findIndex((item) => item.id === day.id) ?? -1;
