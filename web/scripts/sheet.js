@@ -1,7 +1,8 @@
 import { voicePanel } from "./voice.js";
 import { moodPicker } from "./collection.js";
 import { api, asset } from "./client.js";
-import { art, memoryCover, stickerImage } from "./art.js";
+import {paperNote} from "./memory-table.js";
+import { art, stickerImage } from "./art.js";
 import { scrapbook as copy, text } from "./copy.js";
 import { button, captionedImage, element } from "./dom.js";
 import { decorate } from "./icons.js";
@@ -170,7 +171,8 @@ export function coverEditor(day, commit, onClose) {
   function update() {
     const previous = preview.querySelector(".cover-photo img");
     const same = preview.dataset.photo === style.photo && previous?.naturalWidth;
-    preview.replaceChildren(memoryCover(day, "preview", {style, readySrc:same ? previous.src : ""}));
+    const cover = day.photos.find(photo => photo.id === style.photo)?.src || day.cover;
+    preview.replaceChildren(paperNote({...day, style, cover}, true, same ? previous.src : ""));
     preview.dataset.photo = style.photo;
     for (const choice of choices) choice.setAttribute("aria-pressed", String(style[choice.dataset.kind] === choice.dataset.value));
   }

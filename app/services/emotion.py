@@ -58,7 +58,12 @@ def interpret_scene(scene, labels, story, confirmed=False):
         if analysis.get("cutCues")
         else "Темп задан характером выбранной песни."
     )
+    reflective = bool(scores.get("sad")) or bool(re.search(r"устал|груст|скучал|тоск", story, re.I))
+    family = ("cinema" if reflective else "collage" if scores.get("funny")
+              else "geometry" if scores.get("tense") else "wash" if track.get("profile") == "rising"
+              else "journal" if scene.get("signals", {}).get("photoCount", 0) >= 3 else "cinema")
     return {
+        "family": family,
         "labels": list(labels),
         "confirmed": confirmed,
         "primary": primary,
@@ -74,7 +79,7 @@ def interpret_scene(scene, labels, story, confirmed=False):
         if primary in {"bright", "pleasant", "funny"}
         else 0.5,
         "type": "serif" if pace < 0.55 else "sans",
-        "cameraGain": round(0.82 + 0.36 * pace, 3),
+        "cameraGain": round(.42 if reflective else .82 + .36 * pace, 3),
         "dissolveGain": round(1.22 - 0.44 * pace, 3),
         "captionDelay": round(0.06 + 0.18 * (1 - pace), 3),
         "accent": scene.get("palette", {}).get("accent", "#d9dece"),
@@ -87,6 +92,6 @@ def memory_art(day, scene=None):
     labels = tags(day)
     confirmed = day.mood_tags is not None
     saved = scene.get("emotion", {})
-    if saved.get("labels") == labels and saved.get("confirmed") == confirmed:
+    if "family" in saved and saved.get("labels") == labels and saved.get("confirmed") == confirmed:
         return saved
     return interpret_scene(scene, labels, day.story, confirmed)

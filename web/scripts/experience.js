@@ -4,7 +4,8 @@ import {reminderCenter} from "./collection.js";
 import {button, element as el} from "./dom.js";
 import {createFolder} from "./folder.js";
 import {transitionCover} from "./motion.js";
-import {dashboard, dayURL, link} from "./museum.js";
+import {dayURL, link} from "./museum.js";
+import {memoryTable} from "./memory-table.js";
 import {openPlayer} from "./player.js";
 
 const main = document.querySelector("#journal");
@@ -134,7 +135,7 @@ window.addEventListener("popstate", () => {
 });
 async function boot() {
   const id = query.get("day"), view = query.get("view") || "home";
-  const extraScreen = !id && !["home", "today", "settings", "reminders"].includes(view)
+  const extraScreen = !id && !["home", "today", "feed", "settings", "reminders"].includes(view)
     ? import("./screens.js") : null;
   const [mode] = await Promise.all([api("/api/mode"), loadArt()]);
   if (mode.demo)
@@ -167,7 +168,7 @@ async function boot() {
   }
   const media = enableMediaStreaming().catch(() => {});
   const needsDays = !id && !["create", "settings", "reminders"].includes(view);
-  const needsContext = needsDays && !["welcome", "studio"].includes(view);
+  const needsContext = needsDays && !["welcome", "studio", "feed"].includes(view);
   const daysRequest = needsDays ? api("/api/days") : Promise.resolve([]);
   const contextRequest = needsContext ? api("/api/collection") : Promise.resolve({});
   if (id && !query.has("preview")) warmDay(id);
@@ -185,8 +186,16 @@ async function boot() {
   }
   const [days, context] = await Promise.all([daysRequest, contextRequest, media]);
   if (view === "home" || view === "today")
-    main.replaceChildren(dashboard(days, context, warmDay));
-  else if (view === "settings" || view === "reminders") {
+    main.replaceChildren(memoryTable(days, context, warmDay));
+  else if (view === "feed") {
+    const feed = el("section", "gallery-home");
+    feed.append(link("← Мой стол", "/", "back-link"));
+    if (days.length) {
+      const {memoryShelf} = await import("./memory-shelf.js");
+      feed.append(memoryShelf(days, warmDay));
+    } else feed.append(link("Записать первый день", "/?view=create", "accent-link"));
+    main.replaceChildren(feed);
+  } else if (view === "settings" || view === "reminders") {
     const panel = el("section", "profile-panel");
     panel.append(
         el("span", "mono", mode.demo ? "ДЕМОНСТРАЦИОННЫЙ ПРОФИЛЬ" : "ЛИЧНАЯ КОЛЛЕКЦИЯ"),

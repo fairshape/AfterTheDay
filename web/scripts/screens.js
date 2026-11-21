@@ -3,7 +3,7 @@ import {api, asset} from "./client.js";
 import {calendar, moodPicker} from "./collection.js";
 import {button, captionedImage, dateLabel, element as el} from "./dom.js";
 import {icon} from "./icons.js";
-import {previewPhoto} from "./memory-shelf.js";
+import {previewPhoto} from "./memory-table.js";
 import {life} from "./life.js";
 import {dayURL, heading, link, memoryTile, worlds} from "./museum.js";
 

@@ -50,6 +50,7 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   const origin = document.activeElement;
 
   const stage = element("div", "stage");
+  stage.dataset.family = day.emotion?.family || "journal";
   stage.style.setProperty("--scene-grain", scene.grain);
   const ink = element("div", "stage-ink");
   if (precise) {

@@ -43,10 +43,10 @@ EXAMPLES = (
         "style": {"sticker": "moon"},
     },
     {
-        "date": "2026-11-05", "images": "platform", "count": 2, "profile": "calm", "track": "До поезда",
-        "story": "Письмо на пустой платформе. Я тихо ждал поезд на скамейке. Долго держал билет и закрытый конверт. Письмо так и не открыл.",
-        "details": {"mood": "тихое ожидание"},
-        "style": {}, "composition": "waiting",
+        "date": "2026-11-05", "images": "platform", "count": 2, "profile": "rhythmic", "track": "До поезда",
+        "story": "Письмо на пустой платформе. Я тихо ждал поезд на скамейке. В наушниках стучал быстрый ритм. Я скучал и держал закрытый конверт. Письмо так и не открыл.",
+        "details": {"mood": "грусть и ностальгия"},
+        "style": {}, "composition": "rhythmic",
     },
     {
         "date": "2026-11-02", "images": "dawn", "profile": "rising", "track": "Город просыпается",

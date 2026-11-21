@@ -1,7 +1,7 @@
+import {paperNote} from "./memory-table.js";
 import { remixPanel } from "./remix.js";
 import {deleteAction} from "./delete-action.js";
 import { dayCollection } from "./collection.js";
-import { memoryCover } from "./art.js";
 import { api, asset } from "./client.js";
 import { editing, musicText, scrapbook as copy, text, voiceText } from "./copy.js";
 import { button, captionedImage, element } from "./dom.js";
@@ -311,7 +311,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   }
 
   function renderHero(src = "") {
-    hero.replaceChildren(memoryCover(day, "hero", {readySrc:src, heading:"h1"}));
+    hero.replaceChildren(paperNote(day, true, src));
   }
   renderHero(readyCover);
   renderTools();

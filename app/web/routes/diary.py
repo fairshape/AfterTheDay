@@ -138,6 +138,7 @@ def card(day: Day, scene: dict | None = None) -> dict:
     return {"id": day.id, "title": day.title or scene["title"], "date": day.memory_date.isoformat(),
             "emotion": memory_art(day, scene), "photoCount": len(day.photos),
             "focus": scene.get("signals", {}).get("story", ""),
+            "opening": scene.get("signals", {}).get("opening", ""),
             "stills": [media_url(day, item["id"]) for item in day.photos[:3]],
             "duration": scene.get("soundtrack", {}).get("duration") or sum(frame["seconds"] for frame in scene["frames"]),
             "trackLabel": day.track.get("title",""), "audioFile": day.track.get("kind")=="file",

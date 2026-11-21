@@ -2,7 +2,7 @@ import {asset} from "./client.js";
 import {button, captionedImage, dateLabel, element as el} from "./dom.js";
 import {reducedMotion} from "./motion.js";
 
-export const previewPhoto = url => url + "?preview=1";
+import {previewPhoto} from "./memory-table.js";
 
 export function memoryShelf(days, warmDay) {
   const shelf = el("section", "memory-shelf");

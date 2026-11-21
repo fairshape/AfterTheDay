@@ -39,6 +39,8 @@ def start_demo(request: Request, response: Response):
     owner = browser_owner(token)
     directories = []
     stories = [example["story"] for example in EXAMPLES]
+    # Older installations retain the original fictional platform entry.
+    stories.append("Письмо на пустой платформе. Я тихо ждал поезд на скамейке. Долго держал билет и закрытый конверт. Письмо так и не открыл.")
     try:
         with diary.sessions.begin() as db:
             db.execute(text("BEGIN IMMEDIATE"))

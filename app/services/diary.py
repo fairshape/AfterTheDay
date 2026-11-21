@@ -249,6 +249,20 @@ class Diary:
             if asset.get("id"):
                 self.media.remove(day.id, asset["id"])
 
+    def paper_layout(self, day: Day, scene: dict) -> None:
+        family = scene["emotion"]["family"]
+        saved = day.scene.get("emotion", {})
+        if saved.get("family") == family and "layout" in saved:
+            scene["emotion"]["layout"] = saved["layout"]
+            return
+        with self.sessions() as db:
+            recent = db.scalars(select(Day.scene).where(
+                Day.owner_id == day.owner_id, Day.saved_at.is_not(None), Day.id != day.id
+            ).order_by(Day.saved_at.desc()).limit(4))
+            layouts = [s["emotion"].get("layout", "portrait") for s in recent
+                       if s.get("emotion", {}).get("family") == family]
+        scene["emotion"]["layout"] = min(("portrait", "spread"), key=layouts.count)
+
     def save(self, owner: int, day_id: str, *, comparison: dict | None = None) -> Day:
         day = self.get(owner, day_id, include_draft=True)
         if not day:
@@ -266,6 +280,7 @@ class Diary:
         # that changed while building, and the draft ID becomes the permanent day ID.
         scene = build_scene(self.media, day.id, day.story, day.photos, day.track, day.details, moods=day.mood_tags,
                             even_comparison=owner == DEMO_OWNER and bool(comparison))
+        self.paper_layout(day, scene)
         alternate = build_scene(self.media, day.id, day.story, day.photos, comparison,
                                 day.details, base=scene, moods=day.mood_tags) if comparison else {}
         spoken = day.narration
@@ -384,6 +399,7 @@ class Diary:
 
         scene = build_scene(self.media, day.id, day.story, day.photos, track, details, moods=day.mood_tags, base=day.scene or None,
                             even_comparison=day.owner_id == DEMO_OWNER and bool(day.comparison))
+        self.paper_layout(day, scene)
         comparison = (build_scene(self.media, day.id, day.story, day.photos, day.comparison["track"],
                                   details, moods=day.mood_tags, base=scene) if day.comparison else {})
         spoken = pending.get("narration", day.narration)

@@ -29,7 +29,7 @@ class Preferences(BaseModel):
 @router.get("/collection")
 def collection(owner=Depends(owner_for), diary=Depends(diary_for)):
     today = diary.today(owner)
-    return {"moods": list(MOODS), "draft": bool(diary.draft(owner)), "today": today.isoformat(),
+    return {"worldKey": str(owner), "moods": list(MOODS), "draft": bool(diary.draft(owner)), "today": today.isoformat(),
             "anniversaries": [card(day) for day in diary.archive(owner) if day.memory_date.year < today.year
                               and occurrence(day.memory_date, today.year) == today]}
 
