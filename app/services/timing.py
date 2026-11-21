@@ -22,8 +22,8 @@ MAX_EXCERPT = 26
 MIN_READABLE_CLIP = 1.2
 
 
-def excerpt(track: dict, ideal: float, analysis: AudioAnalysis | None) -> tuple[float, float, list[float]]:
-    ideal = min(MAX_EXCERPT, max(MIN_READABLE_CLIP, ideal))
+def excerpt(track: dict, ideal: float, analysis: AudioAnalysis | None, *, maximum: float | None = None) -> tuple[float, float, list[float]]:
+    ideal = min(maximum or MAX_EXCERPT, max(MIN_READABLE_CLIP, ideal))
     if track["kind"] != "file":
         return 0, ideal, []
     length = track["duration"]
@@ -57,7 +57,7 @@ def excerpt(track: dict, ideal: float, analysis: AudioAnalysis | None) -> tuple[
 
 
 def edit_points(captions: list[str], total: float, offset: float, rhythm: Rhythm,
-                final_hold: bool, cues: tuple[AudioCue, ...], *, release: bool = False) -> tuple[list[float], list[dict]]:
+                final_hold: bool, cues: tuple[AudioCue, ...], *, release: bool = False, highlight: int | None = None) -> tuple[list[float], list[dict]]:
     count = len(captions)
     minimum = [min(3.15, max(1.5, len(caption)/20 + .55)) for caption in captions]
     if final_hold:
@@ -68,7 +68,12 @@ def edit_points(captions: list[str], total: float, offset: float, rhythm: Rhythm
     weights = [1.0] * count
     if count > 1 and final_hold:
         weights[-1] = 3.0 if release else 1.9
-    if count > 2:
+    if highlight is not None and 0 <= highlight < count:
+        weights[highlight] = max(weights) + .6
+        minimum[highlight] = max(minimum)
+        scale = min(1, total / sum(minimum))
+        minimum = [value * scale for value in minimum]
+    if count > 2 and highlight != 0:
         weights[0] = .83
     if rhythm is RHYTHMS["rising"] and count > 1:
         weights[0] *= 1.65

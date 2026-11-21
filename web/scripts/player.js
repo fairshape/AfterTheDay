@@ -57,6 +57,7 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
     stage.style.setProperty("--scene-accent", scene.palette.accent);
   }
   const projection = element("div", "projection");
+  projection.style.filter = `contrast(${scene.treatment?.contrast ?? 1}) saturate(${scene.treatment?.saturation ?? 1})`;
   const layers = [element("img", "frame"), element("img", "frame")];
   for (const layer of layers) { layer.alt = ""; projection.append(layer); }
   const openingPrint = frames[0].asset !== day.cover && from?.naturalWidth ? from.cloneNode() : null;
@@ -76,6 +77,8 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   const sticker = stickerImage(day.style.sticker, "playback-sticker");
   if (sticker) sticker.hidden = true;
   const caption = element("p", "scene-caption");
+  caption.style.fontFamily = day.emotion?.type === "serif" ? "var(--serif)" : "var(--body)";
+  let captionsOn = true;
   const status = element("p", "scene-status");
   status.role = "status";
   const footer = element("div", "scene-footer");
@@ -109,6 +112,26 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   const narrationButton = decorate(button("", "player-icon narration-control", toggleNarration), "voice");
   narrationButton.hidden = !assets.voiced;
   controls.append(pauseButton, soundButton, narrationButton, replayButton, time);
+  const options = element("details", "play-options");
+  options.append(element("summary", "", "Настройки показа"));
+  const captionsButton = button("Подписи", "player-action", () => {
+    captionsOn = !captionsOn;
+    captionsButton.setAttribute("aria-pressed", String(captionsOn));
+    draw(elapsed);
+  });
+  captionsButton.setAttribute("aria-pressed","true");
+  options.append(captionsButton);
+  if (selectedAudio()) {
+    const volume = element("input");
+    volume.type = "range"; volume.min = 0; volume.max = 1; volume.step = .05; volume.value = 1;
+    volume.setAttribute("aria-label", "Громкость");
+    volume.oninput = () => {audio.volume = Number(volume.value);}; options.append(volume);
+  }
+  if(document.fullscreenEnabled) options.append(button("Полный экран","player-action",async()=>{
+    try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}
+    catch{status.textContent="Полный экран недоступен.";}
+  }));
+  heading.append(options);
   const linkedSong = element("div", "player-song");
   if (track.kind === "link") {
     linkedSong.append(element("p", "", editing.linkedScene), songLink(track, telegram, "player-link"));
@@ -190,7 +213,7 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
     layers[1].style.opacity = blend;
     layers[1].style.transform = transform(frame, Math.min(1, local / frame.seconds));
     const captionOut = frame.captionOut ?? frame.seconds;
-    caption.hidden = !frame.caption || local < (frame.captionIn ?? 0) || (local > captionOut && index !== frames.length - 1);
+    caption.hidden = !captionsOn || !frame.caption || local < (frame.captionIn ?? 0) || (local > captionOut && index !== frames.length - 1);
     progress.value = seconds;
     scrub.value = seconds;
     scrub.setAttribute("aria-valuetext", timestamp(seconds));
@@ -317,6 +340,7 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   }
 
   function destroy() {
+    if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
     if (closed) return;
     closed = true;
     clearTimeout(finishTimer);

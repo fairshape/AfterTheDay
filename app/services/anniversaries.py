@@ -7,7 +7,7 @@ from sqlalchemy.dialects.sqlite import insert
 
 from app.infrastructure.db.models import Anniversary, Day, Delivery, UserPreference
 
-MOODS = {"уют": ("уют", "какао", "согрев"), "радость": ("радост", "смех", "расхохот", "весел"),
+MOODS = {"юмор": ("смешн","шутк","расхохот"), "уют": ("уют", "какао", "согрев"), "радость": ("радост", "смех", "расхохот", "весел"),
          "спокойствие": ("спокой", "тишин", "тихо"), "ностальгия": ("ностальг", "скучаю", "детств"),
          "напряжение": ("напряж", "тороп", "тревож"), "облегчение": ("облегч", "выдох", "отправили"),
          "грусть": ("груст", "печал")}
@@ -16,7 +16,11 @@ MOODS = {"уют": ("уют", "какао", "согрев"), "радость": (
 def tags(day):
     if day.mood_tags is not None:
         return day.mood_tags
-    words = (day.story + " " + day.details.get("mood", "")).casefold().replace("ё", "е")
+    return suggested_tags(day.story, day.details)
+
+
+def suggested_tags(story, details):
+    words = (story + " " + details.get("mood", "")).casefold().replace("ё", "е")
     return [label for label, cues in MOODS.items() if any(cue in words for cue in cues)]
 
 

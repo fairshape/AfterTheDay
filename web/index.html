@@ -2,32 +2,34 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#F8F0DC">
-  <title>После дня</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#151914">
+  <title>Memory Experience</title>
   <link rel="stylesheet" href="/styles/tokens.css">
   <link rel="stylesheet" href="/styles/journal.css">
   <link rel="stylesheet" href="/styles/cover.css">
   <link rel="stylesheet" href="/styles/player.css">
   <link rel="stylesheet" href="/styles/motion.css">
-  <link rel="stylesheet" href="/styles/photobook.css">
-  <script type="module" src="/scripts/journal.js"></script>
+  <link rel="stylesheet" href="/styles/museum.css">
+  <link rel="stylesheet" href="/styles/cinema.css">
+  <script type="module" src="/scripts/experience.js"></script>
 </head>
 <body>
-  <header class="masthead">
-    <div class="masthead-inner">
-      <a class="wordmark" href="/" id="brand" aria-label="После дня — в дневник">
-        <span class="brand-mark" aria-hidden="true"></span><span>После дня</span>
-      </a>
-      <span class="demo-label" id="demo-label" hidden>Демо</span>
-      <button class="icon-button" type="button" id="search-toggle" aria-label="Поиск и фильтры" aria-expanded="false" hidden></button>
-    </div>
+  <header class="museum-header">
+    <a href="/" class="identity"><span class="iris" aria-hidden="true">✳</span> MEMORY<span class="identity-light">EXPERIENCE</span></a>
+    <nav aria-label="Навигация">
+      <a href="/">Обзор</a>
+      <a href="/?view=archive">Архив эмоций</a>
+      <a href="/?view=life">Life Replay</a>
+    </nav>
+    <a class="create-link" href="/?view=create">＋ <span>Создать</span></a>
+    <a class="profile-link" href="/?view=settings" aria-label="Профиль и настройки">◎</a>
   </header>
-  <main id="journal" class="shell" aria-busy="true">
-    <p role="status" class="page-status">Открываем дневник…</p>
+  <main id="journal" class="museum">
+    <p role="status" class="loading">Открываем экспозицию…</p>
   </main>
   <dialog class="sheet" id="sheet" aria-labelledby="sheet-title"></dialog>
-  <dialog class="theater" id="theater" aria-label="Воспоминание"></dialog>
-  <noscript>Включи JavaScript, чтобы открыть дневник.</noscript>
+  <dialog class="theater" id="theater" aria-label="Кинозал"></dialog>
+  <noscript>Для воспроизведения включи JavaScript.</noscript>
 </body>
 </html>

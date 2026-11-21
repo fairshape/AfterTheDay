@@ -24,7 +24,7 @@ async def send_home(message: Message, owner: int, diary: Diary, settings: Settin
         (action("resume", "draft:resume"),) if draft else (),
         (action("new", "draft:new"), web_link("archive", settings.webapp_url, view="journal")),
         (action("🔎 Найти воспоминание", "collection:search"), web_link("⭐ Избранное", settings.webapp_url, view="favorites")),
-        (web_link("🔔 Напоминания", settings.webapp_url, view="reminders"),),
+        (web_link("🎞 Life Replay", settings.webapp_url, view="life"), web_link("🔔 Напоминания", settings.webapp_url, view="reminders")),
     ))
 
 

@@ -31,8 +31,11 @@ export function transitionCover(source, apply) {
       target = apply();
       mark(target);
     });
-    transition.finished.catch(() => {}).finally(() => removeName(target));
-    return transition.updateCallbackDone;
+    // The browser can skip a capture when a WebView resizes or a page becomes hidden.
+    // ready rejects independently of the finished promise in that case.
+    transition.ready.catch(() => {});
+    const mounted = transition.updateCallbackDone.catch(() => { if (!target) target = apply(); });
+    return Promise.all([mounted, transition.finished.catch(() => {})]).finally(() => removeName(target));
   }
   const target = apply();
   if (!reducedMotion()) target?.closest(".memory-cover")?.animate([{opacity:.4},{opacity:1}], duration("route"));

@@ -1,19 +1,23 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import BackgroundTasks, APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import BackgroundTasks, APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.infrastructure.audio.speech import SpeechUnavailable
-from app.infrastructure.db.models import Day
+from app.infrastructure.db.models import Day, UserPreference
+from app.services.studio import StudioChoices
+from app.services.emotion import memory_art
 from app.services.art_direction import original_cover, suggest_color
 from app.services.anniversaries import MOODS, tags
 from app.services.context import visible_place
 from app.services.narration import assets_for, scene_key, suggested_rate
 from app.services.voice_workflow import preview_voice, save_voice
-from app.services.diary import DEMO_OWNER, Diary, DraftError
-from app.web.auth import TelegramAuth
+from app.services.diary import Diary, DraftError
+from app.web.routes.demo import COOKIE, browser_owner
+from app.web.auth import SESSION_TTL, TelegramAuth
 
 router = APIRouter(prefix="/api")
 NO_CACHE = {"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"}
@@ -34,6 +38,9 @@ class ScenePreviewRequest(BaseModel):
     photo: str | None = Field(default=None, max_length=32)
     quote: str | None = Field(default=None, max_length=108)
     cue: float | None = Field(default=None, ge=0, le=7200)
+    captions: dict[Annotated[str, Field(pattern=r"^[a-f0-9]{32}:[01]$")], Annotated[str, Field(max_length=108)]] = Field(default_factory=dict, max_length=10)
+    resetCaptions: bool = False
+    studio: StudioChoices | None = None
 
 
 class ConfirmSceneRequest(BaseModel):
@@ -58,7 +65,7 @@ class CoverRequest(BaseModel):
     previewToken: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     mainPhoto: str | None = Field(default=None, max_length=32)
     voice: VoicePreviewRequest | None = None
-    moods: list[str] | None = Field(default=None, max_length=7)
+    moods: list[str] | None = Field(default=None, max_length=len(MOODS))
     style: CoverStyle | None
 
 
@@ -69,7 +76,11 @@ def diary_for(request: Request) -> Diary:
 def owner_for(request: Request, authorization: str = Header(default="")) -> int:
     auth: TelegramAuth | None = request.app.state.auth
     if auth is None:
-        return DEMO_OWNER
+        owner = browser_owner(request.cookies.get(COOKIE, ""))
+        with request.app.state.diary.sessions() as db:
+            if not db.get(UserPreference, owner):
+                raise HTTPException(401, "demo_session")
+        return owner
     scheme, _, token = authorization.partition(" ")
     if scheme.lower() != "bearer":
         raise HTTPException(401, "login")
@@ -87,12 +98,15 @@ def mode(request: Request):
 
 
 @router.post("/session")
-def session(body: TelegramLogin, request: Request):
+def session(body: TelegramLogin, request: Request, response: Response):
     auth: TelegramAuth | None = request.app.state.auth
     if auth is None:
         raise HTTPException(404, "unavailable")
     try:
-        return {"token": auth.issue(auth.verify_init_data(body.initData))}
+        token = auth.issue(auth.verify_init_data(body.initData))
+        response.set_cookie("memory_media", token, max_age=SESSION_TTL, path="/api/days/", httponly=True,
+                            secure=request.url.scheme == "https", samesite="strict")
+        return {"token": token}
     except ValueError as exc:
         raise HTTPException(401, "login") from exc
 
@@ -121,6 +135,11 @@ def card(day: Day, scene: dict | None = None) -> dict:
     scene = scene or day.scene
     style = day.cover_style or original_cover(day, scene)
     return {"id": day.id, "title": day.title or scene["title"], "date": day.memory_date.isoformat(),
+            "emotion": memory_art(day, scene), "photoCount": len(day.photos),
+            "focus": scene.get("signals", {}).get("story", ""),
+            "stills": [media_url(day, item["id"]) for item in day.photos[:3]],
+            "duration": scene.get("soundtrack", {}).get("duration") or sum(frame["seconds"] for frame in scene["frames"]),
+            "trackLabel": day.track.get("title",""), "audioFile": day.track.get("kind")=="file",
             "favorite": day.favorite, "moods": tags(day), "moodsConfirmed": day.mood_tags is not None,
             "cover": media_url(day, style["photo"]), "style": style, "place": visible_place(day.details),
             "coverPalette": scene["palette"] if scene.get("palette", {}).get("field") else None}
@@ -160,6 +179,24 @@ def folder(day: Day, candidate: dict | None = None) -> dict:
 def archive(q: str = Query(default="", max_length=120), owner: int = Depends(owner_for),
             diary: Diary = Depends(diary_for)):
     return [card(day) for day in diary.archive(owner, q)]
+
+
+def media_owner(request: Request, authorization: str = Header(default="")) -> int:
+    auth = request.app.state.auth
+    if auth and not authorization:
+        try:
+            return auth.verify_session(request.cookies.get("memory_media", ""))
+        except ValueError as exc:
+            raise HTTPException(401, "media_login") from exc
+    return owner_for(request, authorization)
+
+
+@router.get("/days/media-session")
+def media_session(request: Request, owner: int = Depends(owner_for)):
+    try:
+        return {"direct": media_owner(request, "") == owner}
+    except HTTPException:
+        return {"direct": False}
 
 
 @router.get("/days/{day_id}")
@@ -266,11 +303,11 @@ def pin(day_id: UUID, body: PinRequest, owner: int = Depends(owner_for), diary: 
 
 
 @router.get("/days/{day_id}/media/{asset_id}")
-def media(day_id: UUID, asset_id: str, owner: int = Depends(owner_for), diary: Diary = Depends(diary_for)):
+def media(day_id: UUID, asset_id: str, owner: int = Depends(media_owner), diary: Diary = Depends(diary_for)):
     day = diary.get(owner, str(day_id), include_draft=True)
-    if day is None or (not day.saved_at and day.scene_preview.get("revision") != day.revision):
+    if day is None:
         raise HTTPException(404, "asset")
-    assets = [*day.photos, day.track, (day.comparison or {}).get("track", {}), *assets_for(day)]
+    assets = [*day.photos, day.track, day.scene_preview.get("track", {}), *day.details.get("_previous_audio", []), (day.comparison or {}).get("track", {}), *assets_for(day)]
     match = next((asset for asset in assets if asset.get("id") == asset_id), None)
     if match is None:
         raise HTTPException(404, "asset")

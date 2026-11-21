@@ -210,6 +210,8 @@ class Diary:
         if not any(photo["id"] == asset_id for photo in day.photos):
             raise DraftError("stale")
         details = dict(day.details)
+        if details.get("cover_photo") == asset_id:
+            details.pop("cover_photo")
         if details.get("favorite_photo") == asset_id:
             details.pop("favorite_photo")
         self.edit(day, photos=[photo for photo in day.photos if photo["id"] != asset_id], details=details,
@@ -262,10 +264,10 @@ class Diary:
 
         # Generation completes before publishing. A revision check prevents publishing inputs
         # that changed while building, and the draft ID becomes the permanent day ID.
-        scene = build_scene(self.media, day.id, day.story, day.photos, day.track, day.details,
+        scene = build_scene(self.media, day.id, day.story, day.photos, day.track, day.details, moods=day.mood_tags,
                             even_comparison=owner == DEMO_OWNER and bool(comparison))
         alternate = build_scene(self.media, day.id, day.story, day.photos, comparison,
-                                day.details, base=scene) if comparison else {}
+                                day.details, base=scene, moods=day.mood_tags) if comparison else {}
         spoken = day.narration
         if spoken and self.voice:
             spoken = self.voice.build(day, scene, spoken["voice"], spoken["rate"], spoken)
@@ -335,6 +337,30 @@ class Diary:
         pending = day.scene_preview if not day.saved_at and day.scene_preview.get("revision") == day.revision else {}
         details = dict(pending.get("details", day.details))
         track = dict(pending.get("track", day.track))
+        if "studio" in choices:
+            studio = choices["studio"] or {}
+            order = studio.get("order", [])
+            photo_ids = {photo["id"] for photo in day.photos}
+            if order and (set(order) != photo_ids or len(order) != len(photo_ids)):
+                raise DraftError("invalid_pin")
+            details["studio"] = studio
+        if choices.get("resetCaptions"):
+            details.pop("_captions", None)
+        if "captions" in choices:
+            captions = choices["captions"]
+            photos = {photo["id"] for photo in day.photos}
+            if any(key.split(":")[0] not in photos for key in captions):
+                raise DraftError("invalid_pin")
+            details["_captions"] = {**details.get("_captions", {}), **captions}
+        if "replacement" in choices:
+            if day.revision != choices["revision"]:
+                raise DraftError("stale")
+            if track.get("id"):
+                # Saved films can still reference the previous cut's music.
+                previous = {item["id"]: item for item in details.get("_previous_audio", [])}
+                previous[track["id"]] = track
+                details["_previous_audio"] = list(previous.values())
+            track = choices["replacement"]
         if "photo" in choices:
             photo_id = choices["photo"]
             if photo_id and not any(photo["id"] == photo_id for photo in day.photos):
@@ -356,10 +382,10 @@ class Diary:
                 raise DraftError("invalid_pin")
             details["key_detail"] = quote
 
-        scene = build_scene(self.media, day.id, day.story, day.photos, track, details, base=day.scene or None,
+        scene = build_scene(self.media, day.id, day.story, day.photos, track, details, moods=day.mood_tags, base=day.scene or None,
                             even_comparison=day.owner_id == DEMO_OWNER and bool(day.comparison))
         comparison = (build_scene(self.media, day.id, day.story, day.photos, day.comparison["track"],
-                                  details, base=scene) if day.comparison else {})
+                                  details, moods=day.mood_tags, base=scene) if day.comparison else {})
         spoken = pending.get("narration", day.narration)
         if voice or spoken:
             if not self.voice:

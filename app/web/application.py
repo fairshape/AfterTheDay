@@ -8,6 +8,11 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.services.diary import Diary
+from app.web.routes.demo import router as demo_router
+from app.web.routes.remix import router as remix_router
+from app.web.routes.library import router as library_router
+from app.web.routes.capture import router as capture_router
+from app.web.routes.films import router as films_router
 from app.web.routes.collection import router as collection_router
 from app.bot.anniversaries import dispatch
 from app.web.auth import TelegramAuth
@@ -91,6 +96,11 @@ def create_app(settings: Settings, diary: Diary) -> FastAPI:
     app.state.bot_username = settings.bot_username or None
     app.state.auth = TelegramAuth(settings.bot_token.get_secret_value()) if settings.private_enabled else None
     app.include_router(router)
+    app.include_router(demo_router)
+    app.include_router(films_router)
+    app.include_router(capture_router)
+    app.include_router(library_router)
+    app.include_router(remix_router)
     app.include_router(collection_router)
     web = ROOT / "web"
     app.mount("/styles", StaticFiles(directory=web / "styles"), name="styles")

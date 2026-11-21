@@ -208,3 +208,4 @@
   .stage { width: min(100vw, max(260px, 56.25dvh)); height: 100dvh; aspect-ratio: auto; }
   .projection { width: min(100%, 56.25dvh); margin-inline: auto; }
 }
+.opening-print { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }

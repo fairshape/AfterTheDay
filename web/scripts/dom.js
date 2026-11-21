@@ -31,6 +31,7 @@ export function captionedImage(url, className, asset, alt = "", readySrc = "") {
   const figure = element("img");
   figure.alt = alt;
   figure.decoding = "async";
+  if (className === "tile-image" || className === "reel-thumb") figure.loading = "lazy";
   wrap.append(figure);
   const failed = () => {
     if (!figure.parentNode) return;

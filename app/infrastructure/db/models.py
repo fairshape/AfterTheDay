@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, BigInteger, Date, DateTime, Index, Integer, String, Text, text
+from sqlalchemy import JSON, BigInteger, Date, DateTime, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -59,3 +59,17 @@ class Delivery(Base):
     year: Mapped[int] = mapped_column(Integer, primary_key=True)
     retry_at: Mapped[datetime | None] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String(16))
+
+
+class LifeFilm(Base):
+    __tablename__ = "life_films"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    owner_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    film: Mapped[dict] = mapped_column(JSON)
+
+
+class FilmSource(Base):
+    __tablename__ = "film_sources"
+    film_id: Mapped[str] = mapped_column(ForeignKey("life_films.id", ondelete="CASCADE"), primary_key=True)
+    day_id: Mapped[str] = mapped_column(ForeignKey("days.id", ondelete="RESTRICT"), primary_key=True, index=True)

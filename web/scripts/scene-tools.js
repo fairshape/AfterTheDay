@@ -1,3 +1,4 @@
+import {studioControls} from "./studio-controls.js";
 import { api } from "./client.js";
 import { editing, text, voiceText } from "./copy.js";
 import { button, element } from "./dom.js";
@@ -77,6 +78,19 @@ export function sceneEditor(day, {preview, confirm}) {
   phraseLabel.append(phrase);
   form.append(photoLabel, phraseLabel);
 
+  const captions = expandable("Подписи к кадрам");
+  const fields = new Map(), occurrences = new Map();
+  for (const [index, frame] of day.scene.frames.entries()) {
+    const asset = frame.asset.split("/").at(-1), count = occurrences.get(asset) || 0;
+    occurrences.set(asset,count+1);
+    const label=element("label","field","Кадр "+(index+1)),input=element("input");
+    input.value=input.defaultValue=frame.caption;input.maxLength=108;
+    fields.set(asset+":"+count,input);label.append(input);captions.append(label);
+  }
+  const resetCaptions=element("input");resetCaptions.type="checkbox";
+  const resetLabel=element("label","switch-row","Вернуть авторские фразы");
+  resetLabel.append(resetCaptions);captions.append(resetLabel);form.append(captions);
+
   const seconds = new Intl.NumberFormat("ru", {maximumFractionDigits:2});
   let cue;
   let cueChanged = false;
@@ -112,6 +126,8 @@ export function sceneEditor(day, {preview, confirm}) {
     }
   }
 
+  const studio=studioControls(day,invalidate);
+  form.append(studio.section);
   const build = element("button", "outline-button", editing.generate);
   build.type = "submit";
   const status = element("p", "microcopy");
@@ -138,7 +154,12 @@ export function sceneEditor(day, {preview, confirm}) {
     result.replaceChildren();
     proposed.textContent = "";
     const started = changes;
-    const choices = {photo:photo.value};
+    const choices = {photo:photo.value, studio:studio.value()};
+    if(resetCaptions.checked)choices.resetCaptions=true;
+    else{
+      const changed=[...fields].filter(([,input])=>input.value!==input.defaultValue);
+      if(changed.length)choices.captions=Object.fromEntries(changed.map(([key,input])=>[key,input.value.trim()]));
+    }
     if (phrase.value || phrase.defaultValue || !existing) choices.quote = phrase.value.trim();
     if (cue && cueChanged) choices.cue = cue.value === "" ? null : cue.valueAsNumber;
     try {

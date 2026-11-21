@@ -1,3 +1,4 @@
+import { remixPanel } from "./remix.js";
 import { dayCollection } from "./collection.js";
 import { memoryCover } from "./art.js";
 import { api, asset } from "./client.js";
@@ -178,6 +179,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     strip.append(tile);
   });
   photos.append(strip);
+  if(day.details.reflection)story.append(element("blockquote","reflection",day.details.reflection));
 
   const secondary = element("div", "scene-details");
   const comparison = element("section", "comparison");
@@ -211,13 +213,18 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     status.textContent = editing.confirmed;
   }
 
+  const interpretation=element("details","disclosure");
   const why = element("div");
   function refreshWhy() {
-    why.replaceChildren(whyPanel(variants()[selected].scene, day.narration, day.photos));
+    const activeScene = variants()[selected].scene;
+    why.replaceChildren(whyPanel(activeScene, day.narration, day.photos));
+    interpretation.replaceChildren(element("summary","","Эмоции и ритм"));
+    for(const reason of (selected ? activeScene.emotion : day.emotion)?.reasons||[])
+      interpretation.append(element("p","microcopy",reason));
   }
   function renderTools() {
     refreshWhy();
-    secondary.replaceChildren(why, sceneEditor(day, {
+    secondary.replaceChildren(why, interpretation, sceneEditor(day, {
       confirm,
       preview: async (candidate) => {
         const prepared = await prepare(candidate, candidate.scene, asset);
@@ -263,6 +270,27 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   article.append(header, hero, context, actions, linkedSong, status);
   if (!day.draft) article.append(dayCollection(day, updateArchive));
   article.append(reading);
+  if (!day.draft) {
+    const film=element("a","ink-link","Добавить в Life Replay ↗");film.href="/?view=life&add="+day.id;
+    const metadata=element("details","disclosure");
+    metadata.append(element("summary","","Изменить сведения о записи"));
+    const inputs={};
+    for (const [key,name,value] of [["title","Название",day.title],["date","Дата",day.date],["reflection","Послесловие",day.details.reflection||""]]) {
+      const label=element("label","field",name),input=element("input");input.value=value;
+      input.type=key==="date"?"date":"text";input.maxLength=key==="title"?90:360;
+      label.append(input);metadata.append(label);inputs[key]=input;
+    }
+    const notice=element("p","notice");notice.role="status";
+    metadata.append(button("Сохранить сведения","solid-btn",async()=>{
+      try{await api("/api/days/"+day.id+"/metadata",{revision:day.revision,title:inputs.title.value,date:inputs.date.value,reflection:inputs.reflection.value});location.reload();}
+      catch{notice.textContent="Проверь название и дату. Если запись менялась, обнови страницу.";}
+    }),button("Удалить запись","minor",async()=>{
+      if(!window.confirm("Удалить этот день вместе с фотографиями и аудио?"))return;
+      try{await api("/api/days/"+day.id+"/delete",{revision:day.revision});location.replace("/?view=archive");}
+      catch(e){notice.textContent=e.message==="film_uses_day"?"Этот день входит в сохранённый Life Replay. Сначала удали фильм в монтажной.":"Не удалось удалить. Обнови запись и повтори.";}
+    }),notice);
+    reading.append(remixPanel(day,open),film,metadata);
+  }
 
   let generation = 0;
   async function preload() {
@@ -283,7 +311,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   }
   renderHero(readyCover);
   renderTools();
-  preload();
+  const initialAssets = preload();
 
-  return { article, image: () => hero.querySelector(".cover-photo img") };
+  return { article, initialAssets, play, image: () => hero.querySelector(".cover-photo img") };
 }

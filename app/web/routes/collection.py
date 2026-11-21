@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api")
 
 class Mark(BaseModel):
     favorite: bool | None = None
-    moods: list[str] | None = Field(default=None, max_length=7)
+    moods: list[str] | None = Field(default=None, max_length=len(MOODS))
 
 
 class ReminderChange(BaseModel):

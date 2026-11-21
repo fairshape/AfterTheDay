@@ -1,0 +1,123 @@
+/* The screening room and gallery share an ink surround and a paper reading surface. */
+:root {
+  --cinema-wall: #181b19;
+  --cinema-mat: #232823;
+  --cinema-rule: #4d5449;
+  --cinema-type: #f2f1e6;
+  --cinema-note: #bdc2b4;
+  --cinema-signal: #d9f797;
+  --cinema-gutter: clamp(16px, 3.5vw, 55px);
+  --cinema-enter: 380ms cubic-bezier(.2,.75,.23,1);
+}
+body[data-room="home"], body[data-room="today"] {
+  background: var(--cinema-wall);
+  color: var(--cinema-type);
+}
+.gallery-home { --ink: var(--cinema-type); --muted: var(--cinema-note); --line: var(--cinema-rule); }
+.gallery-home .intro-line { margin: 2px 0 16px; letter-spacing: .15em; }
+.feature { border: 1px solid var(--cinema-rule); background: var(--cinema-mat); }
+.feature-copy { z-index: 1; }
+.feature .accent-link { background: var(--cinema-signal); color: #172010; }
+.hero-quote { font: italic clamp(1.05rem,1.6vw,1.45rem)/1.35 var(--serif); max-width: 36ch; color: #e8ebdf; margin: 12px 0; }
+.hero-facts { display: flex; align-items: center; gap: 8px; margin-top: 18px; color: #d4d9ce; font-size: .78rem; }
+.hero-facts svg { width: 15px; height: 15px; }
+.film-runtime { border-left: 1px solid #777f70; padding-left: 9px; font-variant-numeric: tabular-nums; }
+.still-rail { position: absolute; right: 2%; bottom: 4%; z-index: 2; display:flex; gap:4px; padding:5px; background:#171c17da; }
+.still-choice { border: 1px solid transparent; background: transparent; padding: 2px; width: clamp(49px,6vw,84px); min-height:42px; }
+.still-choice[aria-pressed="true"] { border-color:var(--cinema-signal); }
+.still-sample { height: 100%; aspect-ratio:1.65; }
+.still-choice:focus-visible { outline-color:var(--cinema-signal); }
+.gallery-home .moments { margin-top: 30px; border-top:1px solid var(--cinema-rule); }
+.gallery-home .section-title { margin-top:16px; }
+.gallery-home .ink-link { color: var(--cinema-type); border-bottom:1px solid var(--cinema-rule); }
+.gallery-home .film-tag { color:#191b17; }
+.gallery-home .life-poster { background:var(--cinema-signal); color:#1b2118; }
+.gallery-home .life-poster::after { border-color:#4f603c; }
+.gallery-home .world-link { border-bottom:1px solid var(--cinema-rule); }
+.gallery-home .museum-lower { border-block:1px solid var(--cinema-rule); padding-block:24px; }
+.gallery-home .world-links .section-title { margin-top:0; }
+@media(min-width:850px){
+  .feature { min-height:clamp(430px,36vw,610px); }
+  .feature-photo { left:39%; }
+  .feature::after { background:linear-gradient(90deg,var(--cinema-mat) 0 33%,#232823ca 41%,transparent 61%); }
+  .feature-copy { width:48%; max-width:none; padding:var(--cinema-gutter); }
+  .feature h1 { font-size:clamp(3.25rem,5.6vw,6.1rem); }
+}
+@media(max-width:849px){
+  .feature { min-height:490px; }
+  .feature-copy { max-width:100%; padding:22px; }
+  .feature::after { background:linear-gradient(0deg,#101710 0%,#111811d9 26%,#10171055 66%,transparent 90%); }
+  .still-rail { top:12px; right:12px; bottom:auto; }
+  .feature-copy .accent-link { margin-top:16px; }
+}
+
+/* A continuous gallery surround. Reading, mixing and handwriting use lighter paper. */
+body[data-room] { background:var(--cinema-wall); }
+body[data-room] .museum > .loading { color:var(--ink); }
+:is(.exhibition,.life-workspace,.workspace,.studio-library,.welcome-spread) {
+  --ink:var(--cinema-type);
+  --line:var(--cinema-rule);
+  --muted:var(--cinema-note);
+  color:var(--cinema-type);
+}
+:is(.studio-fields,.film-timeline,.capture-panel,.archive-filter,.calendar,.reading,.profile-panel,.folder .day-collection) {
+  --ink:#1b211a;
+  --muted:#596153;
+  --line:#c9cbbd;
+  color:var(--ink);
+}
+.world-tab[aria-pressed="true"],.archive-filter .minor[aria-pressed=true],.mood-choice[aria-pressed=true] { color:#101611; }
+.archive-filter .minor[aria-pressed=true],.archive-filter .mood-choice[aria-pressed=true],.capture-panel .mood-choice[aria-pressed=true] { background:#243622; color:#f2f5df; }
+.archive-filter,.calendar { background:var(--paper); padding:12px; }
+.exhibition[data-world]:not([data-world=""]) .page-title { color:#1d211e; }
+.exhibition .world-tab:not([aria-pressed=true]) { color:var(--cinema-type); }
+.exhibition .film-tag { color:#22251e; }
+.archive-print { position:relative; min-width:0; }
+.print-actions { position:absolute; display:flex; gap:4px; top:6px; right:6px; }
+.print-action { width:40px; height:40px; display:grid; place-items:center; border:1px solid #ecefdf88; background:#1c211cdb; color:#fff; border-radius:50%; }
+.print-action svg { width:16px; height:16px; }
+.print-action[aria-pressed="true"] { background:var(--cinema-signal); color:#151b13; }
+.archive-tray { position:sticky; bottom:max(10px,var(--pad-bottom)); z-index:3; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8px; padding:10px; margin:16px auto 0; width:fit-content; max-width:100%; border:1px solid var(--cinema-rule); background:var(--cinema-mat); box-shadow:var(--shade); }
+.exhibition .section-title,.studio-library .studio-entry { color:var(--cinema-type); }
+.studio-spread,.capture-panel,.profile-panel { margin-top:16px; }
+.capture-panel,.studio-fields,.film-timeline,.profile-panel { border-top-color:var(--cinema-signal); }
+.workspace .step[aria-current=step] { background:var(--cinema-signal); color:#172010; }
+.life-workspace .film-options { background:#30382f; border-block:1px solid #57604e; }
+.life-workspace > .ink-link,.welcome-spread > .ink-link { color:var(--cinema-type); }
+.life-workspace > .saved-film { color:var(--cinema-type); }
+.folder { background:var(--paper); padding:clamp(12px,2vw,30px); }
+.reading { margin-inline:auto; }
+.folder-header { display:flex; align-items:center; gap:12px; }
+.folder .reading-section { border-color:#9ca58f; }
+.folder .song-card { border:0; border-left:3px solid var(--cobalt-ink); padding:14px; }
+.cover-preview .cover-print { inset:0; box-shadow:none; border:0; padding:0; }
+.cover-preview .cover-title { font:400 clamp(1.1rem,9cqw,1.7rem)/1.04 var(--serif); }
+.studio-library .solid-btn,.workspace .solid-btn,.life-workspace .solid-btn { background:var(--cinema-signal); color:#162012; }
+body[data-room] .folder-actions .primary-button { background:var(--cinema-signal); }
+body[data-room] .museum :is(a,button):focus-visible { outline-color:#95aa39; }
+@media(max-width:650px){
+  .archive-print .print-actions { position:static; margin-top:7px; gap:6px; }
+  .archive-print .print-action { width:44px; height:44px; border-color:var(--cinema-rule); }
+  .folder { padding:12px; }
+}
+.image-wrap .catalog-sticker {
+  position:absolute;
+  top:7px;
+  left:7px;
+  width:clamp(28px,4vw,50px);
+  height:auto;
+  filter:drop-shadow(0 1px 2px #161b1877);
+  transform:rotate(-7deg);
+}
+.life-photo.previous-exposure { z-index:-3; }
+.archive-filter { align-items:flex-start; }
+.archive-filter .filter-extra { flex-basis:auto; }
+.archive-filter .filter-extra[open] { flex-basis:100%; }
+.filter-extra summary { min-height:44px; padding:10px; }
+.filter-options { display:flex; flex-wrap:wrap; gap:7px; padding:8px 0; align-items:center; }
+.exhibition .world-tabs .world-tab[aria-pressed="true"] { color:#192015; }
+@media(max-width:680px){
+  .world-tabs { flex-wrap:nowrap; overflow-x:auto; padding:10px 0; scrollbar-width:thin; }
+  .world-tab { flex-shrink:0; }
+  .archive-filter input[type=search] { flex-basis:100%; }
+}
