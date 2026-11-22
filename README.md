@@ -3,7 +3,7 @@
 # После дня · Memory Experience
 
 Личный кинодневник в Telegram для тех, кто хочет заново пережить день по своим словам, фотографиям и музыке. Проект команды Titans. Genesis HACKATHON ArtTech track.
-Бот хоститься на сервере и доступен по ссылке
+Бот хоститься на сервере и доступен по ссылке:
 
 [![Telegram](https://img.shields.io/badge/Telegram-@mydiary__43bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/mydiary_43bot)
 
