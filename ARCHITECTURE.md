@@ -2,7 +2,7 @@
 
 A memory has one stable identifier from the first draft to the published day. Telegram and the web studio edit that same record. Publication stores a playback timeline alongside the original materials. This lets the table, note, player and cross-day editor interpret the same day consistently after a restart.
 
-## Runtime
+## Process and module boundaries
 
 ```mermaid
 flowchart LR
@@ -21,7 +21,16 @@ flowchart LR
     Worker --> Chat
 ```
 
-[main.py](main.py) validates configuration, chooses the storage directory, opens SQLite, applies migrations when configured, constructs the media, diary and narration services, seeds demo source days when appropriate and hands the application to Uvicorn. The [FastAPI lifespan](app/web/application.py) starts polling and the anniversary worker in private mode. Shutdown stops polling, cancels the worker and closes the notification bot session. Registering commands and the Mini App menu belongs to [polling](app/bot/polling.py). Deployment uses one process per bot token and persistent local storage.
+The entry point validates settings from environment variables and the repository's `.env`. It chooses the demo or private database, applies migrations when enabled, constructs the media, diary and narration services, seeds demo source days when required and starts Uvicorn. In private mode, the FastAPI lifespan starts polling and the anniversary worker. Shutdown stops polling, cancels the worker and closes the notification bot session. The polling task registers bot commands and the Mini App menu. [Entry point](main.py) · [Application lifespan](app/web/application.py) · [Polling](app/bot/polling.py)
+
+| Directory | Responsibility |
+| --- | --- |
+| `app/bot/` | Telegram commands, private chat handlers, album replies, keyboards and delivery. [Bot handlers](app/bot/handlers/) |
+| `app/web/` | HTTP routing, authentication, payload validation and browser-facing representations. [Web routes](app/web/routes/) |
+| `app/services/` | Drafts and publication, visual interpretation, timing, narration and cross-day assembly. [Services](app/services/) |
+| `app/infrastructure/` | SQLite sessions, media IO and local audio utilities. [Infrastructure](app/infrastructure/) |
+| `web/` | HTML shell and ES modules for capture, browsing, editing and playback. [Browser entry point](web/scripts/experience.js) |
+| `config/`, `migrations/`, `demo/` | Validated settings, schema history and reproducible fictional source material. [Settings](config/settings.py) · [Migrations](migrations/versions/) · [Demo inputs](demo/seed.py) |
 
 ## Capture, preview and publication
 
@@ -32,6 +41,8 @@ flowchart LR
 5. **Revisit or edit.** The archive lists published days. Cover choices and corrected mood tags have their own fields. Studio edits to shots go through preview and confirm. Changing an event date can reschedule an active anniversary. Deletion requires ownership and the current day revision. A source used in a saved film is protected. After successful database deletion the application removes the day directory.
 
 The bot's entry, material, draft and collection handlers live in [app/bot/handlers](app/bot/handlers/). The publication rules and candidate lifecycle live in [Diary](app/services/diary.py). The demo seeder also has a direct save path through the same scene builder. Filesystem writes and database transactions have separate commit points. An interrupted operation can leave unreferenced files on disk.
+
+An event date is distinct from the UTC creation and publication timestamps. If the owner skips the date, the day starts with the creation date in the owner's timezone. A shared location can include coordinates in stored details. The published folder response strips coordinates and renders the display label. [Draft detail normalization](app/services/diary.py) · [Folder response](app/web/routes/diary.py)
 
 ## Persistent model
 
@@ -66,7 +77,7 @@ The main entry is [scene assembly](app/services/scene.py). Individual decisions 
 
 ## Life Replay
 
-The studio can shortlist days in a period or receive a selection from the archive. The server checks ownership of two to twenty distinct published days. It orders them manually, chronologically or by the shared energy parameter. Each chapter uses the opening and final frames where time allows, or the final frame alone. A supplied chapter caption overrides the default ending. Duration is a target bounded by the source material and readability. The assembler can move a chapter's internal cut toward a suitable stored audio cue.
+The studio can shortlist days in a period or receive a selection from the archive. The shortlist favors starred entries and variety across periods, moods and places. The server checks ownership of two to twenty distinct published days. It orders them manually, chronologically or by the shared energy parameter. Each chapter uses the opening and final frames where time allows, or the final frame alone. A supplied chapter caption overrides the default ending. The studio accepts a target of 12 to 180 seconds. Actual duration depends on the source scenes and reading time. The assembler can move a chapter's internal cut toward a suitable stored audio cue.
 
 The score can use uploaded audio per chapter, one selected uploaded track across chapters, or silence. Preview returns a playable film definition. Save writes its snapshot and source links in one transaction. Editing an existing film checks its edit revision. The browser plays the saved definition using protected source URLs. [Assembler](app/services/life.py) · [Film API](app/web/routes/films.py) · [Studio](web/scripts/life.js) · [Player](web/scripts/life-player.js)
 
@@ -83,7 +94,9 @@ The score can use uploaded audio per chapter, one selected uploaded track across
 
 Private sessions verify Telegram's HMAC signature and launch timestamp (ten-minute freshness window) and issue an eight-hour signed credential. JSON requests use a bearer token. A path-scoped HttpOnly cookie supports native media loading, with authenticated blob fetching when the cookie probe fails. Media reads check the owner, day and referenced asset before opening the file. Only scripts, styles, artwork and fonts are mounted as static directories. [Authentication](app/web/auth.py) · [Browser client](web/scripts/client.js)
 
-The demo has a separate database and media root. A random cookie identifies an isolated browser library. Initial metadata is copied from the six fictional days, with hard links to the seed media on the same filesystem. Personal text, images and music stay out of the demo. The seed and per-browser copy are separate operations. [Seed inputs](demo/seed.py) · [Demo initialization](app/web/routes/demo.py)
+The demo has a separate database and media root. A random cookie identifies an isolated browser library. Initial metadata is copied from the six fictional days, with hard links to the seed media on the same filesystem. Personal text, images and music stay out of the demo. This installation caps the number of browser libraries at 250 and returns `503 demo_capacity` for new sessions at capacity. [Seed inputs](demo/seed.py) · [Demo initialization](app/web/routes/demo.py)
+
+The API returns `401` for a missing or invalid session, and day and media reads use `404` when the record is unavailable to the owner. A stale revision or a film-protected deletion can return `409`. Oversized streamed uploads return `413`. Invalid input normally returns `422`. Optional speech operations can return `503 speech_unavailable`. [Request validation](app/web/application.py) · [Draft uploads](app/web/routes/capture.py) · [Published-day mutations](app/web/routes/library.py)
 
 ## Browser and navigation
 
@@ -98,6 +111,8 @@ The HTML shell loads native ES modules. [experience.js](web/scripts/experience.j
 | Appearance | [theme.js](web/scripts/theme.js) persists the account's paper/neon selection. [themes.css](web/styles/themes.css) styles the interface. [table.css](web/styles/table.css) defines the physical print composition. |
 
 **Where a choice lives matters.** A theme follows the account. A pinned light and table slot order live in owner-scoped browser storage. Search and return position use browser navigation state. A cover override belongs to one day. Camera motion and caption timing belong to the saved scene. Trying another interface theme therefore requires no scene regeneration.
+
+The archive starts from the owner's published records. The browser filters by collection, month, favorites and the intersection of selected mood tags. It can switch to the calendar or pass the selected IDs to Life Replay. The bot's search uses the diary service and provides direct day links. [Archive screen](web/scripts/screens.js) · [Telegram search](app/bot/handlers/collection.py)
 
 ## Scheduled work
 
