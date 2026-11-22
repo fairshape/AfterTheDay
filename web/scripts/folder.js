@@ -100,7 +100,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   comparison.id = "day-comparison";
   comparison.hidden = true;
   const alternateEditor = day.draft ? null :
-    remixPanel(day, open, {alternate: true, confirm: (token) => confirm(token, true)});
+    remixPanel(() => day, open, {alternate: true, confirm: (token) => confirm(token, true)});
   const compare = button(editing.compare, "outline-button", () => {
     comparison.hidden = !comparison.hidden;
     compare.setAttribute("aria-expanded", String(!comparison.hidden));
@@ -319,7 +319,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
       payload: () => ({revision: day.revision}),
       returnUrl: "/?view=archive",
     }),notice);
-    reading.append(remixPanel(day,open),film,metadata);
+    reading.append(remixPanel(() => day, open), film, metadata);
   }
 
   let generation = 0;

@@ -123,6 +123,27 @@ class FilmLibraryTests(unittest.TestCase):
         self.assertEqual(edited["scene"]["frames"][0]["caption"], "Новая подпись")
         self.assertEqual(edited["comparison"]["frames"][0]["caption"], "Новая подпись")
 
+    def test_second_soundtrack_accepts_shared_link_and_rejects_stale_edit(self):
+        day = self.days[0]
+        selection = Link(url="Послушай эту песню\nhttps://example.org/music", profile="rhythmic")
+        candidate = change_link(day.id, selection, 110, self.diary, slot="alternate", revision=day.revision)
+        updated, _ = self.diary.commit_preview(110, day.id, candidate["previewToken"])
+        self.assertEqual(updated.comparison["track"]["url"], "https://example.org/music")
+        with self.assertRaises(HTTPException) as stale:
+            change_link(day.id, selection, 110, self.diary, slot="alternate", revision=day.revision)
+        self.assertEqual(stale.exception.status_code, 409)
+        self.assertEqual(stale.exception.detail, "stale")
+
+    def test_second_soundtrack_rejects_invalid_audio_without_losing_current_scene(self):
+        day = self.days[0]
+        with self.assertRaises(HTTPException) as invalid:
+            remix(self.diary, 110, day.id, {"kind": "file", "profile": "calm"}, b"bad data", slot="alternate")
+        self.assertEqual(invalid.exception.status_code, 422)
+        self.assertEqual(invalid.exception.detail, "audio_format")
+        saved = self.diary.get(110, day.id)
+        self.assertEqual(saved.scene, day.scene)
+        self.assertEqual(saved.comparison, day.comparison)
+
     def test_caption_correction_and_film_reedit_are_versioned(self):
         day = self.days[0]
         key = day.photos[0]["id"] + ":0"

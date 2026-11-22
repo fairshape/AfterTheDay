@@ -115,6 +115,8 @@ def create_app(settings: Settings, diary: Diary) -> FastAPI:
         response.headers["Referrer-Policy"] = "no-referrer"
         if request.url.path.startswith("/api/") or request.url.path == "/":
             response.headers.update(NO_CACHE)
+        elif request.url.path.startswith("/scripts/"):
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
     @app.exception_handler(RequestValidationError)

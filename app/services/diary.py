@@ -375,6 +375,12 @@ class Diary:
         if "alternate_track" in choices:
             if not day.saved_at or day.revision != choices["revision"]:
                 raise DraftError("stale")
+            photo_ids = {photo["id"] for photo in day.photos}
+            reference_ids = {frame.get("asset") for frame in day.scene["frames"]}
+            if not reference_ids or not reference_ids <= photo_ids or any(
+                not self.media.path(day.id, asset_id).is_file() for asset_id in reference_ids
+            ):
+                raise DraftError("asset_unavailable")
             alternate = build_scene(
                 self.media, day.id, day.story, day.photos, choices["alternate_track"],
                 details, moods=day.mood_tags, base=day.scene, match_cut=True,

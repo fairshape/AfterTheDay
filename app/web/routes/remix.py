@@ -10,7 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from app.infrastructure.audio.speech import SpeechUnavailable
 from app.infrastructure.media.storage import AUDIO_LIMIT
 from app.services.diary import DraftError
-from app.services.music import PROFILES, track_link
+from app.services.music import PROFILES, URL_PATTERN, track_link
 from app.web.routes.diary import diary_for, folder, owner_for
 
 router = APIRouter(prefix="/api/days")
@@ -18,14 +18,16 @@ TrackSlot = Literal["primary", "alternate"]
 
 
 class Link(BaseModel):
-    url: str = Field(max_length=1800)
+    url: str = Field(max_length=4096)
     profile: str = Field(max_length=12)
 
 
-def remix(diary, owner, day_id, track, data=None, *, slot: TrackSlot = "primary"):
+def remix(diary, owner, day_id, track, data=None, *, slot: TrackSlot = "primary", revision: int | None = None):
     day = diary.get(owner, str(day_id))
     if day is None:
         raise HTTPException(404, "day")
+    if revision is not None and revision != day.revision:
+        raise HTTPException(409, "stale")
     if track["profile"] not in PROFILES:
         raise HTTPException(422, "profile")
     new_file = None
@@ -38,16 +40,26 @@ def remix(diary, owner, day_id, track, data=None, *, slot: TrackSlot = "primary"
     except (ValueError, OSError, SpeechUnavailable) as exc:
         if new_file:
             diary.media.remove(day.id, new_file["id"])
-        raise HTTPException(409 if isinstance(exc, DraftError) else 422, "music_preview_failed") from exc
+        if isinstance(exc, DraftError):
+            raise HTTPException(409, str(exc)) from exc
+        if isinstance(exc, SpeechUnavailable):
+            raise HTTPException(503, "speech_unavailable") from exc
+        if isinstance(exc, OSError):
+            raise HTTPException(409, "asset_unavailable") from exc
+        raise HTTPException(422, "audio_format") from exc
     return folder(day, candidate)
 
 
 @router.post("/{day_id}/music/link")
 def change_link(
     day_id: UUID, selection: Link, owner=Depends(owner_for), diary=Depends(diary_for),
-    slot: TrackSlot = "primary",
+    slot: TrackSlot = "primary", revision: int | None = None,
 ):
-    url = track_link(selection.url.strip())
+    value = selection.url.strip()
+    found = URL_PATTERN.findall(value)
+    url = track_link(value) or (track_link(found[0]) if len(found) == 1 else None)
+    if not found and "/" in value:
+        url = track_link("https://" + value)
     if url is None:
         raise HTTPException(422, "link")
     return remix(
@@ -60,17 +72,20 @@ def change_link(
             "profile": selection.profile,
             "title": "Вторая песня по ссылке" if slot == "alternate" else "Песня по ссылке",
             "signal": "user",
-        }, slot=slot,
+        }, slot=slot, revision=revision,
     )
 
 
 @router.post("/{day_id}/music/file")
 async def change_file(
     day_id: UUID, profile: str, request: Request, owner=Depends(owner_for), diary=Depends(diary_for),
-    slot: TrackSlot = "primary", name: str = Query(default="", max_length=160),
+    slot: TrackSlot = "primary", name: str = Query(default="", max_length=160), revision: int | None = None,
 ):
-    if not await run_in_threadpool(diary.get, owner, str(day_id)):
+    day = await run_in_threadpool(diary.get, owner, str(day_id))
+    if not day:
         raise HTTPException(404, "day")
+    if revision is not None and day.revision != revision:
+        raise HTTPException(409, "stale")
     data = bytearray()
     async for chunk in request.stream():
         if len(data) + len(chunk) > AUDIO_LIMIT:
@@ -84,5 +99,5 @@ async def change_file(
         day_id,
         {"kind": "file", "profile": profile, "title": title, "signal": "user"},
         bytes(data),
-        slot=slot,
+        slot=slot, revision=day.revision,
     )
