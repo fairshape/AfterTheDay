@@ -4,3 +4,20 @@ __pycache__/
 *.pyc
 var/
 .pytest_cache/
+
+# Local demo video project and artifacts
+/demo/video/
+/demo.config.json
+/package.json
+/package-lock.json
+/pronounce.json
+/scenario.md
+/scenes.json
+/node_modules/
+/build/
+/output/
+
+/.demo-profile/
+
+# Local hackathon submission
+/HACKATHON_SUBMISSION.md
