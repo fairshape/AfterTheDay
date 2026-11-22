@@ -73,6 +73,8 @@ The migration chain adds the initial day model (0001), timezone preferences (000
 
 A version 2 day scene contains a title, cover, palette, sticker, treatment, track, soundtrack excerpt and signals, emotion parameters and ordered frames. Each frame identifies its asset and records start, duration, crop, camera motion, transition and caption interval. The player uses the audio playback position when local sound is active, and elapsed visual time otherwise. Pause, seeking and replay address this saved timeline. The application produces interactive playback. An MP4 renderer and a streaming catalogue are outside the implemented pipeline.
 
+Published days can carry one alternative soundtrack in the existing `comparison` field. The music routes accept `slot=alternate` to preview that version. The assembler reuses the primary scene's photos, sequence, captions and crops and recalculates timing against the alternative score. Confirmation publishes the alternative alongside the primary. When the primary scene is re-edited, the comparison follows the new shot sequence.
+
 The main entry is [scene assembly](app/services/scene.py). Individual decisions are in [story](app/services/story.py), [palette](app/services/palette.py), [audio analysis](app/infrastructure/audio/analysis.py), [timing](app/services/timing.py), [emotion](app/services/emotion.py), [studio](app/services/studio.py) and [narration](app/services/narration.py).
 
 ## Life Replay
@@ -87,7 +89,7 @@ The score can use uploaded audio per chapter, one selected uploaded track across
 | --- | --- |
 | [diary](app/web/routes/diary.py) | Mode and Telegram session, day list and folders, authorized media, cover, pin, scene preview/confirm and voice preview/confirm. |
 | [capture](app/web/routes/capture.py) | `POST /api/capture` opens the current draft. Fields, upload and removal routes act on its ID and check its revision. |
-| [library](app/web/routes/library.py) and [remix](app/web/routes/remix.py) | Published metadata and deletion, plus proposals for replacing a soundtrack with a link or file. |
+| [library](app/web/routes/library.py) and [remix](app/web/routes/remix.py) | Published metadata and deletion, plus previews for replacing or adding a soundtrack by link or file. |
 | [collection](app/web/routes/collection.py) | Archive context, favorite and mood marks, appearance reads/writes and reminder settings. |
 | [films](app/web/routes/films.py) | `POST /api/films/preview` and `/api/films/save`, plus listing, reopening and deleting saved films. |
 | [demo](app/web/routes/demo.py) | `POST /api/demo/start` creates or resumes the browser's fictional library. |

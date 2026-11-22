@@ -15,7 +15,8 @@ WEATHER_TEXTURE = re.compile(r"дожд|туман|снег|измороз", re.
 
 
 def build_scene(media, day_id: str, story: str, photos: list[dict], track: dict, details: dict,
-                *, moods: list | None = None, base: dict | None = None, even_comparison: bool = False) -> dict:
+                *, moods: list | None = None, base: dict | None = None, even_comparison: bool = False,
+                match_cut: bool = False) -> dict:
     arc = interpret(story, details)
     title = details.get("custom_title") or (base["title"] if base else arc.title)
     profile = track.get("profile", "calm")
@@ -25,11 +26,16 @@ def build_scene(media, day_id: str, story: str, photos: list[dict], track: dict,
     palette_photo = selected_photo if explicit_photo else photos[0]["id"]
     cover_photo = next((p["id"] for p in photos if p["id"] == details.get("cover_photo")), palette_photo)
     palette_photo = selected_photo if explicit_photo else cover_photo
-    palette = photo_palette(media, day_id, photos, palette_photo)
+    reference = base["frames"] if match_cut and base else []
+    palette = base["palette"] if reference else photo_palette(media, day_id, photos, palette_photo)
     studio = details.get("studio", {})
-    ordered = shot_order(photos, studio, selected_photo)
-    if len(ordered) == 1 and arc.opening != arc.ending:
-        ordered = ordered * 2
+    if reference:
+        photos_by_id = {photo["id"]: photo for photo in photos}
+        ordered = [photos_by_id[frame["asset"]] for frame in reference]
+    else:
+        ordered = shot_order(photos, studio, selected_photo)
+        if len(ordered) == 1 and arc.opening != arc.ending:
+            ordered = ordered * 2
     framed = len(ordered)
     ideal = rhythm.seconds * framed + (2.6 if framed > 1 and (arc.release or arc.intimate) else 0)
     ideal = max(15 if framed > 1 else 12, ideal)
@@ -39,30 +45,33 @@ def build_scene(media, day_id: str, story: str, photos: list[dict], track: dict,
         analysis = analyze_audio(media.path(day_id, track["id"]), track["mime"], cue)
     requested = studio.get("seconds")
     offset, duration, alternatives = excerpt(track, requested or ideal, analysis, maximum=45 if requested else None)
-    count = min(framed, max(1, int(duration / 1.8)))
-    if count == 1:
-        ordered = ordered[-1:]
-    elif count < framed:
-        ordered = [ordered[round(i * (framed-1)/(count-1))] for i in range(count)]
-    captions = [""] * len(ordered)
-    captions[0] = arc.opening
-    if len(captions) >= 3 and arc.turn != arc.opening:
-        captions[1] = arc.turn
-    captions[-1] = arc.ending
-    if len(captions) > 1 and captions[0] == captions[-1]:
-        captions[0] = ""
+    if reference:
+        captions = [frame["caption"] for frame in reference]
+    else:
+        count = min(framed, max(1, int(duration / 1.8)))
+        if count == 1:
+            ordered = ordered[-1:]
+        elif count < framed:
+            ordered = [ordered[round(i * (framed-1)/(count-1))] for i in range(count)]
+        captions = [""] * len(ordered)
+        captions[0] = arc.opening
+        if len(captions) >= 3 and arc.turn != arc.opening:
+            captions[1] = arc.turn
+        captions[-1] = arc.ending
+        if len(captions) > 1 and captions[0] == captions[-1]:
+            captions[0] = ""
 
-    occurrences = {}
-    for index, photo in enumerate(ordered):
-        photo_id = photo["id"]
-        occurrence = occurrences.get(photo_id, 0)
-        # The author can identify what a particular photo means through its caption.
-        attached = short_quote(photo.get("caption", "")) if occurrence == 0 else ""
-        default = attached or captions[index]
-        if index == len(ordered) - 1 and arc.focus in {"pin", "release"}:
-            default = arc.ending
-        captions[index] = details.get("_captions", {}).get(f"{photo_id}:{occurrence}", default)
-        occurrences[photo_id] = occurrence + 1
+        occurrences = {}
+        for index, photo in enumerate(ordered):
+            photo_id = photo["id"]
+            occurrence = occurrences.get(photo_id, 0)
+            # The author can identify what a particular photo means through its caption.
+            attached = short_quote(photo.get("caption", "")) if occurrence == 0 else ""
+            default = attached or captions[index]
+            if index == len(ordered) - 1 and arc.focus in {"pin", "release"}:
+                default = arc.ending
+            captions[index] = details.get("_captions", {}).get(f"{photo_id}:{occurrence}", default)
+            occurrences[photo_id] = occurrence + 1
 
     cues = analysis.cues if analysis else ()
     highlight = next((i for i, photo in enumerate(ordered) if photo["id"] == selected_photo), None)
@@ -76,12 +85,14 @@ def build_scene(media, day_id: str, story: str, photos: list[dict], track: dict,
         final = index == len(ordered) - 1
         still = final and hold_detail
         zoom = 1 + (rhythm.zoom - 1) * (.55 if arc.quiet else 1)
-        with Image.open(media.path(day_id, photo["id"])) as image:
-            w, h = image.size
-            if image.getexif().get(274) in {5, 6, 7, 8}:
-                w, h = h, w
-        wide = w/h > 1.08 or (profile == "rising" and final and w/h >= .85)
-        crop = {"fit": "contain" if wide else "cover", "x": .50, "y": .45 if index else .42}
+        crop = reference[index].get("crop") if reference else None
+        if not crop:
+            with Image.open(media.path(day_id, photo["id"])) as image:
+                w, h = image.size
+                if image.getexif().get(274) in {5, 6, 7, 8}:
+                    w, h = h, w
+            wide = w/h > 1.08 or (profile == "rising" and final and w/h >= .85)
+            crop = {"fit": "contain" if wide else "cover", "x": .50, "y": .45 if index else .42}
         seconds = round(points[index+1] - points[index], 3)
         if final and arc.release:
             motion = {"from": 1, "to": 1, "x": 0, "y": 0}

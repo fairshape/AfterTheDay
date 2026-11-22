@@ -96,7 +96,7 @@ function playFilm(film, urls, tracks) {
       date.textContent = dateLabel(s.date, true) + "  /  " + s.title;
       chapter.textContent = "LIFE REPLAY   /   " + film.title;
       stage.style.setProperty("--film-accent", s.emotion.accent);
-      caption.style.fontFamily = s.emotion.type === "serif" ? "var(--serif)" : "var(--body)";
+      caption.classList.toggle("serif-caption", s.emotion.type === "serif");
       index = j;
     }
     picture.style.transform = reduced ? "none" :

@@ -12,7 +12,7 @@ body:is([data-room=home],[data-room=today],[data-room=day]) .museum-header nav a
 body:is([data-room=home],[data-room=today],[data-room=day]) .museum-header .iris {color:#fff2df}
 body:is([data-room=home],[data-room=today]) .museum {width:min(96%,1520px); padding-top:0}
 .table-heading,.table-footer {display:flex;align-items:center;gap:20px;padding:16px clamp(6px,3vw,48px)}
-.table-heading h1 {font:400 clamp(2rem,4vw,3.4rem)/1 var(--serif);letter-spacing:-.055em;margin:0 auto 0 0}
+.table-heading h1 {font:italic 600 clamp(2rem,4vw,3.4rem)/1 var(--serif);letter-spacing:-.055em;margin:0 auto 0 0}
 .table-link,.table-footer a {color:var(--desk-ink);font-size:.88rem;font-weight:630}
 .table-light {background:#f8f4e9;border:1px solid var(--desk-line);border-radius:30px;color:#463f35;padding:8px 12px;max-width:180px;font:inherit;font-size:.8rem}
 .table-surface,.folder-cover {position:relative;isolation:isolate;background:#c6a274 url('/art/table.webp') center/cover;overflow:hidden}
@@ -33,14 +33,14 @@ body:is([data-room=home],[data-room=today]) .museum {width:min(96%,1520px); padd
 .paper-photo img {width:100%;height:100%;object-fit:cover}
 .paper-writing {position:relative;text-align:left;padding:12px 4px 4px}
 .paper-date {font:650 .66rem/1.3 var(--body);text-transform:uppercase;letter-spacing:.09em;display:block;color:inherit;opacity:.82}
-.paper-writing :is(h1,h2) {font:400 clamp(1.3rem,2.35vw,2.55rem)/1.03 var(--serif);letter-spacing:-.045em;margin:8px 0;color:inherit;overflow-wrap:anywhere}
-.paper-phrase {font:italic 400 clamp(.93rem,1.4vw,1.25rem)/1.32 var(--serif);margin:10px 0}
+.paper-writing :is(h1,h2) {font:italic 600 clamp(1.3rem,2.35vw,2.55rem)/1.03 var(--serif);letter-spacing:-.045em;margin:8px 0;color:inherit;overflow-wrap:anywhere}
+.paper-phrase {font:italic 600 clamp(.93rem,1.4vw,1.25rem)/1.32 var(--serif);margin:10px 0}
 .paper-sticker {position:absolute;right:-12px;bottom:-12px;width:clamp(33px,4vw,60px);height:auto;transform:rotate(9deg);filter:drop-shadow(1px 2px 1px #322a2733)}
 .map-piece:not([data-position=center]) .paper-phrase {display:none}
 .map-piece::before,.open-note::before {content:"";position:absolute;z-index:3;left:36%;top:-9px;width:28%;height:19px;background:#d5c397b0;transform:rotate(-5deg);clip-path:polygon(1% 4%,99% 0,96% 35%,100% 65%,97% 100%,0 95%,3% 60%,0 28%);pointer-events:none}
 .loose-print {position:absolute;bottom:4%;right:-5%;width:32%;aspect-ratio:.89;transform:rotate(9deg);border:4px solid #fcf6df;box-shadow:var(--print-shadow)}
 [data-family=geometry]:is(.map-piece,.open-note){background:#e9e8e1;border-left:8px solid var(--paper-accent)}
-[data-family=geometry] .paper-writing :is(h1,h2){font-family:var(--body);font-weight:780;letter-spacing:-.065em}
+[data-family=geometry] .paper-writing :is(h1,h2){font-family:var(--body);font-style:normal;font-weight:780;letter-spacing:-.065em}
 [data-family=cinema]:is(.map-piece,.open-note){background:#262825;color:#faf3dc;padding:clamp(10px,2vw,28px)}
 [data-family=cinema] .paper-photo {aspect-ratio:1.85}
 [data-family=collage]:is(.map-piece,.open-note){background:#fff0d7;box-shadow:5px 6px 0 var(--paper-accent),var(--print-shadow)}
@@ -111,7 +111,7 @@ body:is([data-room=home],[data-room=today]) .museum {width:min(96%,1520px); padd
 .stage[data-family=geometry] .scene-caption {border-left:3px solid var(--scene-accent);padding-left:.55em}
 .stage[data-family=collage] .scene-caption {font-style:italic}
 .stage[data-family=cinema] .scene-caption {letter-spacing:.02em}
-.paper-opening {font:400 1.03rem/1.35 var(--reading);margin:.6em 0}
+.paper-opening {font:italic 600 1.03rem/1.35 var(--reading);margin:.6em 0}
 .map-piece:not([data-position=center]) .paper-opening {display:none}
 .paper-date {border-bottom:2px solid var(--paper-accent);padding-bottom:4px;width:fit-content}
 .map-piece[data-position=center] {z-index:4;background:var(--desk-paper)}

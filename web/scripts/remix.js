@@ -2,10 +2,10 @@ import {api, asset} from "./client.js";
 import {button, element} from "./dom.js";
 import {prepare} from "./player.js";
 
-export function remixPanel(day, open) {
+export function remixPanel(day, open, {alternate = false, confirm} = {}) {
   const panel = element("details", "disclosure"), link = element("input"), file = element("input"),
         profile = element("select");
-  panel.append(element("summary", "", "Заменить музыку"));
+  panel.append(element("summary", "", alternate ? "Настроить вторую песню" : "Заменить музыку"));
   const group = element("div", "pin-form");
   function field(name, input) {
     input.setAttribute("aria-label", name);
@@ -31,7 +31,7 @@ export function remixPanel(day, open) {
     option.value = key;
     profile.append(option);
   }
-  field("Ссылка на новую песню", link);
+  field(alternate ? "Ссылка на вторую песню" : "Ссылка на новую песню", link);
   field("Или аудиофайл", file);
   field("Как звучит эта песня?", profile);
   const result = element("div", "actions"), notice = element("p", "notice");
@@ -47,19 +47,34 @@ export function remixPanel(day, open) {
     notice.textContent = "Собираем новый монтаж…";
     result.replaceChildren();
     try {
-      const candidate = file.files.length ?
-          await api(path + "file?profile=" + profile.value, file.files[0]) :
-          await api(path + "link", {url: link.value, profile: profile.value});
-      const sources = await prepare(candidate, candidate.scene, asset);
+      const query = new URLSearchParams({slot: alternate ? "alternate" : "primary"});
+      let candidate;
+      if (file.files.length) {
+        const audio = file.files[0];
+        query.set("profile", profile.value);
+        query.set("name", audio.name.replace(/\.[^.]+$/, "").slice(0, 160));
+        candidate = await api(path + "file?" + query, audio);
+      } else {
+        candidate = await api(path + "link?" + query, {url: link.value, profile: profile.value});
+      }
+      const scene = alternate ? candidate.comparison : candidate.scene;
+      const sources = await prepare(candidate, scene, asset);
       result.append(button("Посмотреть", "outline-button", () => {
                       document.querySelectorAll("audio").forEach(a => a.pause());
-                      open(candidate, candidate.scene, sources, null);
-                    }), button("Сохранить музыку", "primary-button", async () => {
+                      open(candidate, scene, sources, null);
+                    }), button(alternate ? "Сохранить вторую песню" : "Сохранить музыку", "primary-button", async () => {
                       group.inert = true;
                       try {
-                        await api(
-                            "/api/days/" + day.id + "/scene/confirm", {token: candidate.previewToken});
-                        location.reload();
+                        if (confirm) {
+                          await confirm(candidate.previewToken);
+                          panel.open = false;
+                          link.value = "";
+                          file.value = "";
+                          result.replaceChildren();
+                        } else {
+                          await api("/api/days/" + day.id + "/scene/confirm", {token: candidate.previewToken});
+                          location.reload();
+                        }
                       } catch {
                         notice.textContent = "Монтаж изменился. Подготовь его ещё раз.";
                       } finally {

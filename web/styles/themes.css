@@ -12,16 +12,16 @@ html[data-theme=neon] {
   --ui-action:#d9f579; --ui-on-action:#1b2112;
   --desk-ink:var(--ui-ink); --desk-paper:var(--ui-panel); --desk-line:var(--ui-rule);
 }
-html[data-theme] body[data-room] {
+html[data-theme] body {
   --cinema-wall:var(--ui-wall); --cinema-type:var(--ui-ink); --cinema-note:var(--ui-muted);
   --cinema-rule:var(--ui-rule); --cinema-mat:var(--ui-panel); --cinema-signal:var(--ui-action);
   background:var(--ui-wall); color:var(--ui-ink);
 }
-html[data-theme] body[data-room] .museum-header {
+html[data-theme] body .museum-header {
   background:var(--ui-panel); color:var(--ui-ink); border-color:var(--ui-rule);
 }
-html[data-theme] body[data-room] .museum-header nav a {color:var(--ui-ink)}
-html[data-theme] body[data-room] .museum-header :is(.iris,.create-link) {color:var(--ui-on-action);background:var(--ui-action)}
+html[data-theme] body .museum-header nav a {color:var(--ui-ink)}
+html[data-theme] body .museum-header :is(.iris,.create-link) {color:var(--ui-on-action);background:var(--ui-action)}
 html[data-theme] .museum-header nav [aria-current=page]{border-color:var(--ui-action)}
 .theme-picker {display:inline-flex;align-items:center;position:relative;background:var(--ui-panel);border:1px solid var(--ui-rule);border-radius:25px;padding:3px;gap:2px;color:var(--ui-ink)}
 .theme-choice {background:transparent;border:0;color:inherit;border-radius:20px;padding:6px 13px;min-height:44px;font:650 .82rem var(--body)}
@@ -34,12 +34,12 @@ html[data-theme] :is(.studio-fields,.film-timeline,.capture-panel,.archive-filte
   --muted:var(--ui-muted); --line:var(--ui-rule); --cobalt-ink:var(--ui-action);
   background-color:var(--ui-panel);color:var(--ui-ink);
 }
-html[data-theme] body[data-room] :is(.folder-actions .primary-button,.solid-btn,.accent-link,.workspace .step[aria-current=step],.primary-button) {background:var(--ui-action);color:var(--ui-on-action)}
+html[data-theme] body :is(.folder-actions .primary-button,.solid-btn,.accent-link,.workspace .step[aria-current=step],.primary-button) {background:var(--ui-action);color:var(--ui-on-action)}
 html[data-theme] .table-light {background:var(--ui-panel);color:var(--ui-ink);border-color:var(--ui-rule)}
 html[data-theme] .exhibition .world-tab:not([aria-pressed=true]) {color:var(--ui-ink)}
 html[data-theme] :is(.life-workspace .film-options,.studio-fields,.capture-panel) {background-color:var(--ui-panel);color:var(--ui-ink)}
 html[data-theme] .theme-choice:focus-visible {outline:2px solid var(--ui-ink);outline-offset:1px}
-html[data-theme=neon] body[data-room] {--paper:var(--ui-panel);--white:var(--ui-raised);--line:var(--ui-rule);--muted:var(--ui-muted);--ink:var(--ui-ink);--success:#b4de82;--error:#ffad9e}
+html[data-theme=neon] body {--paper:var(--ui-panel);--white:var(--ui-raised);--line:var(--ui-rule);--muted:var(--ui-muted);--ink:var(--ui-ink);--success:#b4de82;--error:#ffad9e}
 html[data-theme=neon] :is(.table-surface,.folder .folder-cover) {
   --lamp:#c2e394;
   background-color:#171c18;

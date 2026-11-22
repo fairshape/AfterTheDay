@@ -9,7 +9,7 @@
   --line:#cbcbbd;
   --accent:#dcf88a;
   --night:#151914;
-  --serif:"Old Standard",Georgia,serif;
+  --serif:var(--reading);
   --gap:clamp(16px,3vw,42px);
   --edge:4px;
   --shade:0 12px 35px #1018101c;
@@ -134,7 +134,7 @@ body {
 }
 
 .section-title h2,.museum h2.reading-title {
-  font:400 clamp(1.65rem,3.5vw,3.2rem)/1.1 var(--serif);
+  font:italic 600 clamp(1.65rem,3.5vw,3.2rem)/1.1 var(--serif);
   letter-spacing:-.045em;
 }
 
@@ -179,7 +179,7 @@ body {
 }
 
 .museum-tile h3 {
-  font:400 clamp(1.35rem,2.4vw,2.3rem)/1.08 var(--serif);
+  font:italic 600 clamp(1.35rem,2.4vw,2.3rem)/1.08 var(--serif);
   letter-spacing:-.04em;
   margin:4px 0;
 }
@@ -219,7 +219,7 @@ body {
 }
 
 .life-poster h2 {
-  font:400 clamp(1.9rem,3vw,3rem)/1 var(--serif);
+  font:italic 600 clamp(1.9rem,3vw,3rem)/1 var(--serif);
   margin:26px 0;
 }
 
@@ -329,7 +329,7 @@ body {
 }
 
 .page-title {
-  font:400 clamp(2.9rem,6vw,6rem)/1 var(--serif);
+  font:italic 600 clamp(2.9rem,6vw,6rem)/1 var(--serif);
   letter-spacing:-.06em;
   margin:12px 0 26px;
 }
@@ -509,7 +509,7 @@ body {
 }
 
 .timeline-row h3,.saved-film {
-  font:400 1.5rem/1.15 var(--serif);
+  font:italic 600 1.5rem/1.15 var(--serif);
 }
 
 .saved-film {
@@ -551,7 +551,7 @@ body {
 }
 
 .folder-cover .cover-title {
-  font:400 clamp(2.3rem,4.5vw,4.6rem)/.99 var(--serif);
+  font:italic 600 clamp(2.3rem,4.5vw,4.6rem)/.99 var(--serif);
   letter-spacing:-.055em;
 }
 
@@ -568,10 +568,6 @@ body {
 
 .reading-section {
   padding:24px 0;
-}
-
-.original-story {
-  line-height:1.58;
 }
 
 .folder .primary-button,.sheet .primary-button {
@@ -666,8 +662,13 @@ body {
 }
 
 .life-caption h2 {
-  font:400 clamp(1.65rem,5vw,2.5rem)/1.08 var(--serif);
+  font:600 clamp(1.65rem,5vw,2.5rem)/1.08 var(--body);
   margin-top:7px;
+}
+
+.life-caption .serif-caption {
+  font-family:var(--serif);
+  font-style:italic;
 }
 
 .life-controls {
@@ -857,7 +858,7 @@ body {
 }
 
 .reflection {
-  font:italic 1.32rem/1.4 var(--serif);
+  font:italic 600 1.32rem/1.4 var(--serif);
   border-left:3px solid var(--ink);
   margin:18px 0;
   padding-left:16px;
@@ -906,7 +907,7 @@ body {
 }
 
 .studio-entry h2 {
-  font:400 clamp(1.4rem,3vw,2.6rem)/1.03 var(--serif);
+  font:italic 600 clamp(1.4rem,3vw,2.6rem)/1.03 var(--serif);
   margin:5px 0;
 }
 
@@ -949,7 +950,7 @@ body {
 }
 
 .director-controls { border:0; border-top:1px solid var(--line); width:100%; margin:12px 0; padding:12px 0; }
-.director-controls legend { font:400 1.5rem var(--serif); padding:0 10px 0 0; }
+.director-controls legend { font:italic 600 1.5rem var(--serif); padding:0 10px 0 0; }
 .shot-sequence { display:flex; overflow:auto; gap:12px; padding:8px 0; }
 .order-shot { display:grid; grid-template-columns:1fr 1fr; min-width:96px; flex:0 0 100px; gap:3px; }
 .order-shot .mono,.order-thumb { grid-column:1/-1; }

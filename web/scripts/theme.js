@@ -8,8 +8,14 @@ function applyTheme(theme) {
   document.querySelector('meta[name="theme-color"]').content = theme === "neon" ? "#141715" : "#f8f4ea";
 }
 
+function rememberTheme(theme) {
+  try { localStorage.setItem("memory-interface-theme", theme); } catch {}
+}
+
 export async function loadTheme() {
-  applyTheme((await api("/api/appearance")).theme);
+  const {theme} = await api("/api/appearance");
+  applyTheme(theme);
+  rememberTheme(theme);
 }
 
 export function themePicker() {
@@ -25,7 +31,10 @@ export function themePicker() {
       status.textContent = "";
       applyTheme(value);
       sync(true);
-      try { await api("/api/appearance", {theme:value}); }
+      try {
+        await api("/api/appearance", {theme:value});
+        rememberTheme(value);
+      }
       catch {
         applyTheme(previous);
         status.textContent = "Не удалось сохранить тему. Попробуй ещё раз.";

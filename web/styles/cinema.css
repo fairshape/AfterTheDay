@@ -61,7 +61,7 @@ body[data-room] .museum > .loading { color:var(--ink); }
 .folder .reading-section { border-color:#9ca58f; }
 .folder .song-card { border:0; border-left:3px solid var(--cobalt-ink); padding:14px; }
 .cover-preview .cover-print { inset:0; box-shadow:none; border:0; padding:0; }
-.cover-preview .cover-title { font:400 clamp(1.1rem,9cqw,1.7rem)/1.04 var(--serif); }
+.cover-preview .cover-title { font:italic 600 clamp(1.1rem,9cqw,1.7rem)/1.04 var(--serif); }
 .studio-library .solid-btn,.workspace .solid-btn,.life-workspace .solid-btn { background:var(--cinema-signal); color:#162012; }
 body[data-room] .folder-actions .primary-button { background:var(--cinema-signal); }
 body[data-room] .museum :is(a,button):focus-visible { outline-color:#95aa39; }

@@ -11,8 +11,9 @@ from app.web.routes.capture import current
 from app.web.routes.diary import media
 from app.web.routes.films import Edit, Item, build, delete_film, get_film
 from app.web.routes.library import Metadata, Version, delete_day, metadata
-from app.web.routes.remix import Link, change_link
+from app.web.routes.remix import Link, change_link, remix
 from config.settings import ROOT
+from demo.score import make_score
 
 
 class FilmLibraryTests(unittest.TestCase):
@@ -95,6 +96,32 @@ class FilmLibraryTests(unittest.TestCase):
             media(draft.id, asset, 111, self.diary, preview=True)
         with self.assertRaises(HTTPException):
             current(self.diary, 111, draft.id, draft.revision)
+
+    def test_second_soundtrack_preserves_primary_and_follows_published_captions(self):
+        day = self.days[0]
+        candidate = remix(
+            self.diary, 110, day.id,
+            {"kind": "file", "profile": "rhythmic", "signal": "user", "title": "Второй трек"},
+            make_score("rhythmic"), slot="alternate",
+        )
+        alternate = candidate["comparison"]
+        asset_id = alternate["track"]["asset"].rsplit("/", 1)[1]
+        self.assertEqual(media(day.id, asset_id, 110, self.diary).media_type, "audio/wav")
+        with self.assertRaises(HTTPException):
+            media(day.id, asset_id, 111, self.diary)
+        self.assertFalse(self.diary.get(110, day.id).comparison)
+        updated, _ = self.diary.commit_preview(110, day.id, candidate["previewToken"])
+        self.assertEqual(updated.scene, day.scene)
+        self.assertEqual(updated.track, day.track)
+        self.assertEqual(
+            [(frame["asset"], frame["caption"]) for frame in updated.scene["frames"]],
+            [(frame["asset"], frame["caption"]) for frame in updated.comparison["frames"]],
+        )
+        self.assertNotEqual(updated.scene["signals"]["baseSeconds"], updated.comparison["signals"]["baseSeconds"])
+        key = updated.scene["frames"][0]["asset"] + ":0"
+        _, edited = self.diary.preview_scene(110, day.id, {"captions": {key: "Новая подпись"}})
+        self.assertEqual(edited["scene"]["frames"][0]["caption"], "Новая подпись")
+        self.assertEqual(edited["comparison"]["frames"][0]["caption"], "Новая подпись")
 
     def test_caption_correction_and_film_reedit_are_versioned(self):
         day = self.days[0]

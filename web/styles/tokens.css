@@ -6,9 +6,10 @@
 }
 
 @font-face {
-  font-family: "Old Standard";
-  src: url("/fonts/OldStandard-Regular.ttf") format("truetype");
-  font-weight: 400;
+  font-family: "Cormorant Garamond";
+  src: url("/fonts/CormorantGaramond-Italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 300 700;
   font-display: swap;
 }
 
@@ -36,7 +37,7 @@
   --pad-bottom: max(env(safe-area-inset-bottom, 0px), var(--telegram-bottom, 0px));
   --pad-left: max(env(safe-area-inset-left, 0px), var(--telegram-left, 0px));
   --route-ms: 155ms;
-  --reading: "Old Standard", Georgia, serif;
+  --reading: "Cormorant Garamond", Georgia, serif;
   --player-ms: 320ms;
   --sticker-ms: 280ms;
   --sheet-ms: 265ms;

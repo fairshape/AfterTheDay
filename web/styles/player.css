@@ -103,6 +103,11 @@
   overflow-wrap: anywhere;
 }
 .frame-error { position: absolute; top: 45%; width: 100%; text-align: center; font-weight: 650; }
+.scene-caption.serif-caption {
+  font-family: var(--reading);
+  font-style: italic;
+  font-weight: 600;
+}
 .scene-footer { grid-row: 4; min-width: 0; }
 .scene-status { color: var(--paper); font-size: .8rem; padding: 5px; background: var(--ink); }
 .scene-status:empty { display: none; }

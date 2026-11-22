@@ -310,7 +310,9 @@ def media(day_id: UUID, asset_id: str, owner: int = Depends(media_owner), diary:
     day = diary.get(owner, str(day_id), include_draft=True)
     if day is None:
         raise HTTPException(404, "asset")
-    assets = [*day.photos, day.track, day.scene_preview.get("track", {}), *day.details.get("_previous_audio", []), (day.comparison or {}).get("track", {}), *assets_for(day)]
+    pending_comparison = day.scene_preview.get("comparison") or {}
+    assets = [*day.photos, day.track, day.scene_preview.get("track", {}), *day.details.get("_previous_audio", []),
+              (day.comparison or {}).get("track", {}), pending_comparison.get("track", {}), *assets_for(day)]
     match = next((asset for asset in assets if asset.get("id") == asset_id), None)
     if match is None:
         raise HTTPException(404, "asset")

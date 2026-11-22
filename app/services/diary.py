@@ -302,7 +302,7 @@ class Diary:
                             even_comparison=owner == DEMO_OWNER and bool(comparison))
         self.paper_layout(day, scene)
         alternate = build_scene(self.media, day.id, day.story, day.photos, comparison,
-                                day.details, base=scene, moods=day.mood_tags) if comparison else {}
+                                day.details, base=scene, moods=day.mood_tags, match_cut=True) if comparison else {}
         spoken = day.narration
         if spoken and self.voice:
             spoken = self.voice.build(day, scene, spoken["voice"], spoken["rate"], spoken)
@@ -372,6 +372,15 @@ class Diary:
         pending = day.scene_preview if not day.saved_at and day.scene_preview.get("revision") == day.revision else {}
         details = dict(pending.get("details", day.details))
         track = dict(pending.get("track", day.track))
+        if "alternate_track" in choices:
+            if not day.saved_at or day.revision != choices["revision"]:
+                raise DraftError("stale")
+            alternate = build_scene(
+                self.media, day.id, day.story, day.photos, choices["alternate_track"],
+                details, moods=day.mood_tags, base=day.scene, match_cut=True,
+            )
+            return {"token": uuid4().hex, "revision": day.revision, "scene": day.scene,
+                    "comparison": alternate, "details": details, "track": track, "narration": day.narration}
         if "studio" in choices:
             studio = choices["studio"] or {}
             order = studio.get("order", [])
@@ -421,7 +430,7 @@ class Diary:
                             even_comparison=day.owner_id == DEMO_OWNER and bool(day.comparison))
         self.paper_layout(day, scene)
         comparison = (build_scene(self.media, day.id, day.story, day.photos, day.comparison["track"],
-                                  details, moods=day.mood_tags, base=scene) if day.comparison else {})
+                                  details, moods=day.mood_tags, base=scene, match_cut=True) if day.comparison else {})
         spoken = pending.get("narration", day.narration)
         if voice or spoken:
             if not self.voice:

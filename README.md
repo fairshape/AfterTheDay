@@ -53,6 +53,8 @@ mkdir -p var/voices
 python -m piper.download_voices --download-dir var/voices ru_RU-irina-medium ru_RU-denis-medium
 ```
 
+To compare two tracks on any saved entry, use **Добавить вторую песню** next to **Пережить день**. Upload a file or paste a song link, prepare the edit and save the second song. **Сравнить монтаж** opens the version switcher. Both versions use the same pictures and captions. An uploaded file can play in the scene. A linked song opens externally, while its selected character influences the pace.
+
 ## Configuration and storage
 
 | Setting | Effect |

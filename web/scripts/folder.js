@@ -96,6 +96,18 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     open(day, variants()[selected].scene, ready, hero.querySelector(".cover-photo img"));
   }), "play", text.preparing);
   play.disabled = true;
+  const comparison = element("section", "comparison");
+  comparison.id = "day-comparison";
+  comparison.hidden = true;
+  const alternateEditor = day.draft ? null :
+    remixPanel(day, open, {alternate: true, confirm: (token) => confirm(token, true)});
+  const compare = button(editing.compare, "outline-button", () => {
+    comparison.hidden = !comparison.hidden;
+    compare.setAttribute("aria-expanded", String(!comparison.hidden));
+    if (!comparison.hidden && !day.comparison && alternateEditor) alternateEditor.open = true;
+  });
+  compare.setAttribute("aria-controls", comparison.id);
+  compare.setAttribute("aria-expanded", "false");
   const edit = decorate(button("", "outline-button", () => {
     article.querySelectorAll("audio").forEach(audio => audio.pause());
     overlay((close) => coverEditor(day, (updated) => {
@@ -125,7 +137,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
       saveDraft.disabled = false;
     }
   });
-  actions.append(play, day.draft ? saveDraft : edit);
+  actions.append(play, compare, day.draft ? saveDraft : edit);
   if (day.draft) actions.append(edit);
   const linkedSong = element("div", "linked-song-note");
   if (day.track.kind === "link") {
@@ -183,7 +195,6 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   if(day.details.reflection)story.append(element("blockquote","reflection",day.details.reflection));
 
   const secondary = element("div", "scene-details");
-  const comparison = element("section", "comparison");
   function variants() {
     const entries = [{label:day.scene.track.title, scene:day.scene}];
     if (day.comparison) entries.push({label:day.comparison.track.title, scene:day.comparison});
@@ -195,13 +206,17 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     return entries;
   }
 
-  async function confirm(token) {
+  async function confirm(token, alternate = false) {
     const updated = await api(`/api/days/${day.id}/scene/confirm`, {token});
     if (day.draft) {
       published(updated);
       return;
     }
     day = updated;
+    if (alternate) {
+      selected = 1;
+      compare.focus();
+    }
     updateArchive(day);
     renderHero();
     refreshStorySound();
@@ -211,7 +226,7 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
     renderTools();
     renderComparison();
     preload();
-    status.textContent = editing.confirmed;
+    status.textContent = alternate ? editing.alternateSaved : editing.confirmed;
   }
 
   const interpretation=element("details","disclosure");
@@ -244,31 +259,42 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
 
   function renderComparison() {
     const entries = variants();
-    comparison.hidden = entries.length === 1;
+    selected = Math.min(selected, entries.length - 1);
+    compare.textContent = entries.length > 1 ? editing.compare : editing.addAlternate;
+    compare.hidden = entries.length === 1 && !alternateEditor;
+    actions.classList.toggle("with-comparison", !compare.hidden);
     comparison.replaceChildren();
-    if (comparison.hidden) return;
-    const label = day.scene.evenFrames ? editing.compare : text.comparison;
-    comparison.append(element("h2", "reading-title", label));
-    const list = element("div", "track-switch");
-    list.role = "group";
-    list.setAttribute("aria-label", label);
-    entries.forEach(({label}, index) => {
-      const switcher = button(label, "track-choice", () => {
-        if (index === selected) return;
-        article.querySelectorAll("audio").forEach((audio) => audio.pause());
-        selected = index;
-        [...list.children].forEach((choice, i) => choice.setAttribute("aria-pressed", String(i === selected)));
-        renderTools();
-        preload();
+    if (compare.hidden) {
+      comparison.hidden = true;
+      compare.setAttribute("aria-expanded", "false");
+      return;
+    }
+    if (entries.length > 1) {
+      const list = element("div", "track-switch");
+      list.role = "group";
+      list.setAttribute("aria-label", text.comparison);
+      entries.forEach(({label}, index) => {
+        const duplicate = entries.some((entry, other) => other !== index && entry.label === label);
+        const display = duplicate ? `${index + 1}. ${label}` : label;
+        const switcher = button(display, "track-choice", () => {
+          if (index === selected) return;
+          article.querySelectorAll("audio").forEach((audio) => audio.pause());
+          selected = index;
+          [...list.children].forEach((choice, i) => choice.setAttribute("aria-pressed", String(i === selected)));
+          refreshWhy();
+          preload();
+        });
+        switcher.setAttribute("aria-pressed", String(selected === index));
+        list.append(switcher);
       });
-      switcher.setAttribute("aria-pressed", String(selected === index));
-      list.append(switcher);
-    });
-    comparison.append(list);
+      comparison.append(list);
+      comparison.append(element("p", "microcopy", editing.comparePlay));
+    }
+    if (alternateEditor) comparison.append(alternateEditor);
   }
   renderComparison();
-  reading.append(story, photos, soundtrack(day.track, telegram, day.scene), comparison, voice, secondary);
-  article.append(header, hero, context, actions, linkedSong, status);
+  reading.append(story, photos, soundtrack(day.track, telegram, day.scene), voice, secondary);
+  article.append(header, hero, context, actions, comparison, linkedSong, status);
   if (!day.draft) article.append(dayCollection(day, updateArchive));
   article.append(reading);
   if (!day.draft) {
@@ -300,10 +326,11 @@ export function createFolder(initialDay, {back, open, overlay, updateArchive, te
   async function preload() {
     const mark = ++generation;
     const scene = variants()[selected].scene;
+    const previousImages = ready?.images;
     ready = null;
     play.disabled = true;
     decorate(play, "play", text.preparing);
-    const loaded = await prepare(day, scene, asset);
+    const loaded = await prepare(day, scene, asset, previousImages);
     if (mark !== generation) return;
     ready = loaded;
     play.disabled = false;

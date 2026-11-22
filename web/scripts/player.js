@@ -7,9 +7,10 @@ import { songLink } from "./song-link.js";
 
 const modal = document.querySelector("#theater");
 
-export async function prepare(day, scene, asset) {
+export async function prepare(day, scene, asset, previousImages) {
   const paths = [...new Set([day.cover, ...scene.frames.map((frame) => frame.asset)])];
   const source = async (path) => {
+    if (previousImages?.get(path)) return previousImages.get(path);
     try {
       const url = await asset(path);
       if (path !== scene.track.asset) {
@@ -78,7 +79,7 @@ export function openPlayer(day, scene, assets, onClose, {from, telegram} = {}) {
   const sticker = stickerImage(day.style.sticker, "playback-sticker");
   if (sticker) sticker.hidden = true;
   const caption = element("p", "scene-caption");
-  caption.style.fontFamily = day.emotion?.type === "serif" ? "var(--serif)" : "var(--body)";
+  caption.classList.toggle("serif-caption", day.emotion?.type === "serif");
   let captionsOn = true;
   const status = element("p", "scene-status");
   status.role = "status";

@@ -229,13 +229,24 @@ svg { flex: 0 0 auto; width: 22px; height: 22px; display: block; }
 .folder-actions { margin-top: 13px; display: grid; gap: 9px; grid-template-columns: 1.1fr 1fr; }
 .folder-actions .primary-button { min-height: 53px; }
 .folder-actions svg { width: 18px; height: 18px; }
+.folder-actions.with-comparison { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.folder-actions.with-comparison > :nth-child(n+3) { grid-column: 1 / -1; }
+.folder-actions button[aria-expanded="true"] { border-color: var(--ui-action); color: var(--ui-action); }
 .folder-status { color: var(--success); font-size: .88rem; }
 .folder-status:not(:empty) { margin-top: 8px; }
 .reading { max-width: 660px; margin: 20px auto 0; }
-.reading-section, .comparison {
+.reading-section {
   border-top: 1px solid var(--line);
   padding: 17px 0 19px;
 }
+.comparison {
+  margin-top: 9px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+}
+.comparison .microcopy { margin: 8px 0 0; }
 .reading-title {
   font-size: clamp(1.35rem, 4.8vw, 1.82rem);
   font-weight: 800;
@@ -243,7 +254,7 @@ svg { flex: 0 0 auto; width: 22px; height: 22px; display: block; }
   line-height: 1.1;
   margin-bottom: 10px;
 }
-.original-story { white-space: pre-wrap; overflow-wrap: anywhere; font: 400 1.22rem/1.43 var(--reading); }
+.original-story { white-space: pre-wrap; overflow-wrap: anywhere; font: italic 600 1.22rem/1.58 var(--reading); }
 .photo-strip { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
 .gallery-tile { padding: 0; border: 1.5px solid var(--ink); border-radius: 10px; overflow: hidden; background: var(--white); }
 .gallery-thumb { aspect-ratio: 1; }
@@ -365,6 +376,8 @@ svg { flex: 0 0 auto; width: 22px; height: 22px; display: block; }
   .cover-preview { min-width: 0; }
   .editor-content { grid-template-columns: 1fr 1.25fr; align-items: start; }
   .folder-actions { width: max-content; }
+  .folder-actions.with-comparison { grid-template-columns: repeat(3, auto); }
+  .folder-actions.with-comparison > :nth-child(n+3) { grid-column: auto; }
   .record-dock { bottom: calc(20px + var(--pad-bottom)); }
 }
 
