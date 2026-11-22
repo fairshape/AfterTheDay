@@ -1,78 +1,124 @@
-# Memory Experience · После дня
+<div align="center">
 
-Memory Experience is a private photographic diary for Telegram and the browser. Capture a story, photographs and a song. Open the resulting print on **Мой стол**, read the note and choose **Пережить день** to play the saved Day Replay. Find a published day in **Архив эмоций**, or assemble several days into a private **Life Replay**.
+# После дня · Memory Experience
 
-## Run the browser demo
+Личный кинодневник в Telegram для тех, кто хочет заново пережить день по своим словам, фотографиям и музыке.
 
-Use Python 3.11 or newer. Run these commands from the repository root. The demo supplies six fictional entries and stores its edits in a separate library.
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.119%2B-009688?style=flat-square&logo=fastapi&logoColor=white)
+![aiogram](https://img.shields.io/badge/aiogram-3.33%2B-229ED9?style=flat-square&logo=telegram&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0.44%2B-A52D28?style=flat-square&logo=sqlalchemy&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-ES_modules-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
 
-```sh
+</div>
+
+<img src="docs/images/hero.png" alt="Главный экран После дня" width="100%">
+
+---
+
+## 💡 Проблема и решение
+
+- **Проблема.** Фотографии, история и песня часто остаются в разных приложениях. По отдельности они передают лишь часть дня.
+- **Решение.** Один день хранится как заметка с оригиналами и как фильм. Текст задаёт подписи, фотографии — палитру, а музыка — ритм.
+- **Главная особенность.** Один и тот же день можно посмотреть **под двумя песнями**: кадры и подписи совпадают, а тайминг и склейки меняются.
+
+---
+
+## 🎬 Демонстрация работы
+
+| Выбор монтажа | Day Replay |
+| --- | --- |
+| <img src="docs/images/feature-1.png" alt="Сравнение монтажей в записи Осенний парк и какао" width="100%"> | <img src="docs/images/feature-2.png" alt="Финальный кадр Day Replay с подписью" width="100%"> |
+| В заметке «Осенний парк и какао» кнопка **Сравнить монтаж** открывает обе песни и ровный монтаж на исходном отрывке. | Плеер показывает кадры и подписи по сохранённому таймлайну. На финальном кадре остаётся фраза «Долго разговаривали». |
+
+<img src="docs/images/mobile.png" alt="Мой стол на мобильном экране" width="270">
+
+**Мобильный стол.** Откройте заметку касанием, листайте развороты стрелками или свайпом. Темы **Бумага** и **Неон** меняют оформление интерфейса.
+
+Демо содержит шесть вымышленных записей. Для своих записей нажмите **Создать** и добавьте рассказ, фото и песню. В архиве можно найти день по слову, месту или настроению, а из нескольких дней собрать **Life Replay**.
+
+---
+
+## 🧩 Архитектура и стек
+
+Бот и веб-студия работают с одним черновиком владельца. FastAPI проверяет подписанные данные запуска Telegram, в браузерном демо отдельная библиотека привязывается к cookie. Сборщик извлекает фразы из текста, подбирает палитру по снимкам и рассчитывает таймлайн по звуковым акцентам загруженного файла или выбранному характеру трека. SQLite хранит записи и таймлайны, а фотографии и аудио лежат на диске и выдаются по защищённому API. Life Replay собирает сохранённые сцены в главы. [Подробная архитектура](ARCHITECTURE.md)
+
+```mermaid
+flowchart LR
+    TG["Telegram"] --> BOT["Бот aiogram"]
+    UI["Mini App и браузер"] --> API["FastAPI"]
+    BOT --> DIARY["Сервис дневника"]
+    API --> DIARY
+    DIARY --> CUT["Сборщик сцен"]
+    DIARY --> DB[("SQLite")]
+    DIARY --> MEDIA["Закрытые медиа на диске"]
+    CUT --> MEDIA
+```
+
+| Слой | Технология | Для чего |
+| --- | --- | --- |
+| Клиент | HTML, CSS, JavaScript | Стол, архив, редакторы и плееры в браузере |
+| Telegram и API | aiogram, FastAPI, Uvicorn | Приём материалов, авторизация и выдача записей |
+| Хранение | SQLite, SQLAlchemy, Alembic | Черновики, сцены, настройки и миграции |
+| Фото и звук | Pillow, Mutagen, FFmpeg | Палитра, метаданные и поиск звуковых акцентов |
+| Озвучка | Piper | Локальный синтез речи при установленных моделях |
+
+---
+
+## 🚀 Быстрый старт
+
+### 1. Клонируйте репозиторий и установите зависимости
+
+Нужен Python 3.11 или новее. FFmpeg в системном `PATH` нужен для анализа аудио и смешивания музыки с голосом. Базовое демо запускается без него.
+
+```bash
+git clone https://github.com/fairshape/AfterTheDay.git
+cd AfterTheDay
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-[ -e .env ] || cp .env.example .env
-DEMO_MODE=true python main.py
 ```
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000). Swipe the table or use its arrows to see both spreads. Find **Осенний парк и какао** in the archive to compare the original edit, an evenly timed version of the same excerpt, and a second soundtrack. The [three-minute demonstration](docs/demo.md) includes the complete capture and replay sequence.
+### 2. Создайте файл настроек
 
-FastAPI serves the interface and native JavaScript modules from the same origin. To run the demo next to an active bot, choose a different port with `DEMO_MODE=true PORT=8001 python main.py`. Reopen the same browser profile to keep access to its demo library. Each separate browser session with no existing demo cookie gets its own editable copy on initialization.
-
-## Run the Telegram bot
-
-1. Set `BOT_TOKEN` in `.env` to the token from BotFather. Use `WEBAPP_URL` for the public HTTPS origin of this installation and set `DEMO_MODE=false`.
-2. Forward that origin to Uvicorn with an HTTPS reverse proxy or tunnel. Forward the full origin, including `/api`, `/scripts`, `/styles` and `/art`. The default upstream is `http://127.0.0.1:8000` on the host running the app.
-3. With the virtual environment active, run `python main.py`. The process serves the app, registers the Telegram diary menu, polls for messages and sends scheduled reminders. Run one polling instance per bot token.
-4. Open a private chat with the bot, send `/start` and choose **Записать день**. Send a story, at least one photograph and a track link or audio file. Choose **Собрать воспоминание** to open the preview, then **Сохранить день**. Use the bot's **Открыть день** button to reopen the published entry.
-
-If either Telegram setting is missing, startup reports it and opens the browser demo. If a tunnel changes address, update `WEBAPP_URL`, restart the service and request new buttons with `/start`. Open the private library from Telegram so the Mini App receives signed launch data.
-
-### Troubleshooting
-
-| Symptom | Check |
-| --- | --- |
-| `ModuleNotFoundError: No module named 'uvicorn'` | Activate `.venv` and install the requirements with the same Python interpreter that runs `main.py`. |
-| Port already in use | For the demo, use another port. For private mode, stop the previous instance or point HTTPS at the intentional bind port. |
-| Telegram Mini App fails to open | Verify that `WEBAPP_URL` is the current HTTPS origin, the tunnel forwards requests and the button was issued with the current address. |
-| Music link opens outside the diary | That is the linked-track flow. Upload an audio file for playback and waveform-based editing inside the scene. |
-| Voice generation is unavailable | Check that the model files and their configuration files are in the configured voice directory. |
-
-## Inputs and optional audio tools
-
-| Input | Accepted values |
-| --- | --- |
-| Story | Up to 12,000 characters. Bot and web studio share the owner's unfinished draft. |
-| Photos | One to ten still JPEG, PNG or WebP files, up to 10 MiB and 32 megapixels each. Telegram album photos can carry individual captions. |
-| Music | A direct HTTP(S) track link or an MP3, AAC in MP4/M4A, Ogg Opus/Vorbis, FLAC or PCM WAV file up to 20 MiB. |
-| Event details | Date, time, place or a label for a shared location, weather, mood and a detail to highlight. Availability depends on the capture screen or bot step. |
-
-Install FFmpeg on the host for waveform analysis and music–voice mixing. When waveform analysis is unavailable, shot timing follows the track character. Optional local Piper narration uses the Irina and Denis models. Install them from the project environment:
-
-```sh
-mkdir -p var/voices
-python -m piper.download_voices --download-dir var/voices ru_RU-irina-medium ru_RU-denis-medium
+```bash
+cp .env.example .env
 ```
 
-To compare two tracks on any saved entry, use **Добавить вторую песню** next to **Пережить день**. Upload a file or paste a song link, prepare the edit and save the second song. **Сравнить монтаж** opens the version switcher. Both versions use the same pictures and captions. An uploaded file can play in the scene. A linked song opens externally, while its selected character influences the pace.
+Для браузерного демо оставьте поля `BOT_TOKEN` и `WEBAPP_URL` пустыми. Для личного дневника в Telegram заполните оба и направьте публичный HTTPS-адрес на запущенное приложение.
 
-## Configuration and storage
+| Переменная | Описание | Пример |
+| --- | --- | --- |
+| `BOT_TOKEN` | Токен из BotFather для режима Telegram | пусто для демо |
+| `WEBAPP_URL` | Публичный HTTPS-адрес Mini App | `https://journal.example.com` |
+| `DEMO_MODE` | Принудительно включает браузерное демо | `true` |
+| `HOST` / `PORT` | Адрес и порт процесса | `127.0.0.1` / `8000` |
+| `DATA_DIR` | Каталог базы и медиа | `var` |
+| `AUTO_MIGRATE` | Применяет миграции при запуске | `true` |
+| `APP_TIMEZONE` | Часовой пояс по умолчанию для дат и годовщин | `Asia/Almaty` |
 
-| Setting | Effect |
-| --- | --- |
-| `BOT_TOKEN`, `WEBAPP_URL`, `DEMO_MODE` | A token and a public HTTPS origin enable private mode unless demo mode is forced. |
-| `HOST`, `PORT` | Uvicorn bind, default `127.0.0.1:8000`. |
-| `DATA_DIR`, `AUTO_MIGRATE` | Default root is `var`. With automatic migration disabled, upgrade the private database with `python -m alembic upgrade head` in its configured environment before startup. Demo startup always migrates. |
-| `APP_TIMEZONE` | Default calendar and anniversary zone, initially `Asia/Almaty`. The user can set their own zone. |
-| `BOT_USERNAME` | Initial username for the bot recording link until polling resolves the bot's username. |
-| `WELCOME_STICKER_ID`, `ASSEMBLY_STICKER_ID`, `FIRST_SAVE_STICKER_ID`, `ANNIVERSARY_STICKER_ID` | Optional Telegram sticker file IDs for chat events. |
-| `VOICE_DIRECTORY`, `VOICE_ONE_MODEL`, `VOICE_TWO_MODEL`, `SPEECH_TIMEOUT` | Directory, two Piper model names and synthesis timeout. |
+### 3. Запустите приложение
 
-Keep `DATA_DIR/private` on persistent storage. Back up the whole directory with the service stopped, including SQLite and `media/<day-id>/`. The demo uses `DATA_DIR/demo`. Keep credentials in the local environment. See the [configuration template](.env.example) and [validation rules](config/settings.py).
+```bash
+DEMO_MODE=true PORT=8001 python main.py
+```
 
-## Project documentation
+Откройте [http://127.0.0.1:8001](http://127.0.0.1:8001). При первом запуске приложение применит миграции SQLite и подготовит примеры в `var/demo`. Отдельный сервер БД и сборка фронтенда не требуются.
 
-- Runtime, data model, authentication, API, audio and scene assembly. [ARCHITECTURE.md](ARCHITECTURE.md)
-- Design system, art direction, assets and credits. [docs/product.md](docs/product.md)
-- Rehearsal steps and screen recording sequence. [docs/demo.md](docs/demo.md)
-- Reproducible checks and results from prior runs. [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS.md)
-- Russian submission text, examples and project links. [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md)
+Для режима Telegram установите `DEMO_MODE=false` в заполненном `.env` и запустите:
+
+```bash
+python main.py
+```
+
+Откройте личный чат с ботом и отправьте `/start`. Личные записи хранятся отдельно в `var/private`.
+
+---
+
+## 🛤️ Что дальше
+
+- [ ] Переключать две дорожки из плеера, чтобы сравнивать один и тот же момент без возврата в заметку.
+- [ ] Добавить экспорт Day Replay в видео, чтобы готовым монтажом можно было поделиться.
+- [ ] Автоматизировать очистку старых демобиблиотек, чтобы освободить место при публичном показе.
+- [ ] Проверить звук, перемотку и кнопку «Назад» на iOS и Android в Telegram, чтобы выявить отличия от обычного браузера.
